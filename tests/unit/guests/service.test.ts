@@ -1,7 +1,7 @@
 import { drizzle } from "drizzle-orm/node-sqlite";
-import { migrate } from "drizzle-orm/node-sqlite/migrator";
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 
+import { migrate } from "~/server/db/migrate";
 import { guests } from "~/server/db/schema";
 import { createGuestService, type GuestResult } from "~/server/guests";
 
@@ -86,7 +86,7 @@ describe("guest drafts", () => {
     },
   );
 
-  test.for(["86400", "172800", "604800"])(
+  test.for(["43200", "86400", "172800", "604800"])(
     "preset %s stores an intention without calculating an effective deadline",
     (duration) => {
       const guest = value(service.create({ ...input, duration }, null));
@@ -112,15 +112,25 @@ describe("guest drafts", () => {
     });
   });
 
-  test("custom dates and optional preset deadlines are stored as UTC intentions", () => {
-    for (const duration of ["custom", "86400"]) {
-      const guest = value(
-        service.create({ ...input, duration, requested_expires_at: "2031-04-05T12:30" }, null),
-      );
-      expect(guest.requested_expires_at?.toISOString()).toBe("2031-04-05T12:30:00.000Z");
-      expect(guest.requested_duration_seconds).toBe(duration === "custom" ? null : 86400);
-      expect(guest.activated_at).toBeNull();
-    }
+  test("custom dates use the submitted browser zone and reject simultaneous relative and absolute intentions", () => {
+    const fields = {
+      ...input,
+      requested_expires_at: "2031-04-05T12:30",
+      time_zone: "Europe/Paris",
+    };
+    const guest = value(service.create({ ...fields, duration: "custom" }, null));
+    expect(guest.requested_expires_at?.toISOString()).toBe("2031-04-05T10:30:00.000Z");
+    expect(guest.requested_duration_seconds).toBeNull();
+    expect(guest.activated_at).toBeNull();
+    expect(service.create({ ...fields, duration: "43200" }, null)).toMatchObject({
+      ok: false,
+      error: { code: "validation" },
+    });
+    const relative = value(
+      service.update(guest.id, guest.revision, { ...input, duration: "43200" }),
+    );
+    expect(relative.requested_expires_at).toBeNull();
+    expect(relative.requested_duration_seconds).toBe(43200);
   });
 
   test("oversized notes, display names, control characters and repeated form fields are refused", () => {
@@ -169,16 +179,18 @@ describe("guest drafts", () => {
     expect(value(service.get(guest.id)).email).toBe("new@example.com");
   });
 
-  test("an elapsed planned deadline can be preserved during editing without activating or expiring a draft", () => {
+  test("elapsed absolute deadlines retain the record but cannot be saved as a new access intention", () => {
     const fields = { ...input, duration: "custom", requested_expires_at: "2030-01-02T00:00" };
     const guest = value(service.create(fields, null));
     vi.advanceTimersByTime(86400 * 1000 * 2);
-    expect(value(service.update(guest.id, 1, { ...fields, notes: "Still planning" })).status).toBe(
-      "draft",
-    );
+    expect(value(service.get(guest.id))).toEqual(guest);
+    expect(service.update(guest.id, 1, { ...fields, notes: "Still planning" })).toMatchObject({
+      ok: false,
+      error: { code: "validation" },
+    });
     expect(
-      service.update(guest.id, 2, { ...fields, requested_expires_at: "2030-01-01T01:00" }),
-    ).toMatchObject({ ok: false, error: { code: "validation" } });
+      value(service.update(guest.id, 1, { ...input, duration: "43200" })).requested_expires_at,
+    ).toBeNull();
   });
 
   test("revocation closes a draft permanently and refuses edits and repeat revocations", () => {

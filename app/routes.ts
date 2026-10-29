@@ -42,6 +42,7 @@ export default [
         route("/auth-keys", "routes/settings/auth-keys/overview.tsx"),
         route("/restrictions", "routes/settings/restrictions/overview.tsx"),
         route("/agent", "routes/settings/agent.tsx"),
+        route("/guest-email", "routes/settings/guest-email.tsx"),
       ]),
     ]),
   ]),

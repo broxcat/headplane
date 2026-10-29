@@ -79,7 +79,7 @@ export const guests = sqliteTable(
     ),
     check(
       "guests_requested_duration",
-      sql`(${table.requested_duration_seconds} IS NOT NULL AND ${table.requested_duration_seconds} IN (86400, 172800, 604800)) OR (${table.requested_duration_seconds} IS NULL AND ${table.requested_expires_at} IS NOT NULL)`,
+      sql`(${table.requested_duration_seconds} IS NOT NULL AND ${table.requested_duration_seconds} IN (43200, 86400, 172800, 604800)) OR (${table.requested_duration_seconds} IS NULL AND ${table.requested_expires_at} IS NOT NULL)`,
     ),
     check(
       "guests_revocation",

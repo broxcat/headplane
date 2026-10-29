@@ -8,17 +8,38 @@ import Input from "~/components/input";
 import Select from "~/components/select";
 import type { Guest } from "~/server/db/schema";
 import { fieldValidator } from "~/utils/form";
+import { localDateTime, validateAccessDate } from "~/utils/guest-access";
 
-import { durationItems, guestFields, plannedExpiry } from "./schemas";
+import { durationItems, guestFields } from "./schemas";
 
 export default function GuestDialog({ guest }: { guest?: Guest }) {
   const [duration, setDuration] = useState<string | null>(
-    guest ? String(guest.requested_duration_seconds ?? "custom") : "86400",
+    guest?.requested_expires_at ? "custom" : String(guest?.requested_duration_seconds ?? "43200"),
   );
-  const existingExpiry = guest?.requested_expires_at?.toISOString().slice(0, 16) ?? "";
+  const [timeZone, setTimeZone] = useState("UTC");
+  const [date, setDate] = useState("");
+  const [time, setTime] = useState("");
+  function openChanged(open: boolean) {
+    if (!open) return;
+    const zone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+    setTimeZone(zone);
+    setDuration(
+      guest?.requested_expires_at ? "custom" : String(guest?.requested_duration_seconds ?? "43200"),
+    );
+    const local = guest?.requested_expires_at
+      ? localDateTime(guest.requested_expires_at, zone)
+      : "";
+    setDate(local.slice(0, 10));
+    setTime(local.slice(11, 16));
+  }
+  const custom = duration === "custom";
+  const local = `${date}T${time}`;
+  const checked = custom ? validateAccessDate(local, timeZone) : null;
 
   return (
     <ActionDialog
+      onOpenChange={openChanged}
+      isDisabled={Boolean(custom && checked && "error" in checked)}
       title={guest ? "Edit guest draft" : "Add Guest"}
       description="Prepare a guest without granting VPN access. No invitation is sent. Multiple drafts may use the same email address."
       intent={guest ? "update" : "create"}
@@ -55,37 +76,50 @@ export default function GuestDialog({ guest }: { guest?: Guest }) {
         />
       </Field>
       <Select
-        label="Requested access duration"
+        label="Access duration"
         name="duration"
-        items={durationItems}
+        items={
+          guest?.requested_duration_seconds === 86400
+            ? [...durationItems, { value: "86400", label: "24 hours (legacy)" }]
+            : durationItems
+        }
         value={duration}
         onValueChange={setDuration}
         required
-        description="This duration starts only after a future activation. Saving a draft starts no countdown."
+        description="Relative durations start only when VPN permissions are actually activated in a future phase. Invitation validity is separate."
       />
-      <Input
-        label="Planned expiry (UTC)"
-        name="requested_expires_at"
-        type="datetime-local"
-        required={duration === "custom"}
-        defaultValue={existingExpiry}
-        description="Optional for preset durations. This is a requested deadline, not an effective network expiry."
-        validate={(value) => {
-          const error = fieldValidator(plannedExpiry)(value);
-          if (error) return error;
-          if (!value && duration === "custom")
-            return "Choose a planned expiry for a custom duration.";
-          if (
-            typeof value === "string" &&
-            value &&
-            value !== existingExpiry &&
-            new Date(`${value}Z`).getTime() <= Date.now()
-          ) {
-            return "Choose a planned expiry in the future.";
-          }
-          return null;
-        }}
-      />
+      <input type="hidden" name="time_zone" value={timeZone} />
+      {custom && (
+        <fieldset className="flex flex-col gap-3">
+          <legend className="text-sm font-medium">Access expires at</legend>
+          <p className="text-muted text-xs">
+            Time zone: {timeZone}. Stored in UTC. This absolute deadline must still be in the future
+            when access is activated.
+          </p>
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <Input label="Date" type="date" required value={date} onChange={setDate} />
+            <Input label="Time" type="time" required step={60} value={time} onChange={setTime} />
+          </div>
+          <Field
+            label="Access expiry validation"
+            labelHidden
+            name="requested_expires_at"
+            validate={() => (checked && "error" in checked ? checked.error : null)}
+          >
+            <BaseField.Control type="hidden" value={date && time ? local : ""} />
+          </Field>
+          {checked && "error" in checked && date && time && (
+            <p role="alert" className="text-bad text-xs">
+              {checked.error}
+            </p>
+          )}
+          {checked && "date" in checked && (
+            <p className="text-muted text-xs">
+              UTC: {checked.date.toISOString().replace("T", " ").slice(0, 16)}
+            </p>
+          )}
+        </fieldset>
+      )}
     </ActionDialog>
   );
 }

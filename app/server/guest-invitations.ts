@@ -311,6 +311,7 @@ export function createInvitationService({
           deliveryId,
           email: guest.email,
           name: guest.display_name ?? "guest",
+          accessPlan: guest,
           expires,
           resent: invitation.send_count > 0,
         });
@@ -328,6 +329,7 @@ export function createInvitationService({
             serviceName,
             claim.expires,
             `${publicUrl}#token=${token}`,
+            claim.accessPlan,
           ),
         )
       ).ok;

@@ -15,6 +15,7 @@ interface RouteModule {
 
 const modules = import.meta.glob<RouteModule>("/app/{routes,layout}/**/*.{ts,tsx}");
 
+// Guest email metadata and connection checks stay private and require manage_guests.
 // Everything else needs a signed-in user with dashboard access.
 const PUBLIC = new Set([
   "routes/util/healthz.ts",

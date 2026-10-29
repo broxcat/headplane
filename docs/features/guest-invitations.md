@@ -7,7 +7,9 @@ Guest invitations extend [Guest management](/features/guest-management) with ema
 delivery and verified administrative acceptance. Accepting an invitation verifies
 access to the invited mailbox. It creates no Headplane login, Headscale user,
 auth key, device, ACL rule, or VPN permission. Requested network durations remain
-planning information and start no countdown.
+planning information and start no countdown. The email presents the recipient,
+link deadline and access intention separately; an absolute access deadline is
+shown in UTC. Guest retention is independent of both deadlines.
 
 Invitations are disabled by default. Existing configurations and phase-one
 drafts continue to work without SMTP or a public URL.
@@ -96,12 +98,33 @@ contain invitation links and verification codes: treat them as secrets, keep
 them outside public/static directories, and remove them after testing. They are
 not logs or an administrative inbox. Headplane never prints their contents.
 
+## Check delivery without sending
+
+Open **Settings → Guest email** (or **Guest email settings** from Guests).
+Owners and admins can inspect the transport, sender, public origin and SMTP
+connection metadata. SMTP passwords, usernames and secret paths are never
+returned to the browser. Edit configuration and protected secret files on the
+server; this screen never writes configuration or changes systemd services.
+
+Select **Check connection** and confirm. SMTP checks negotiate mandatory TLS and
+authenticate without sending `MAIL FROM`, a recipient or a message. File checks
+verify directory access without creating a message. Checks have a one-minute
+per-process cooldown, require `manage_guests` and use the existing same-origin
+mutation guard. Errors are fixed messages without provider exception text.
+Success confirms connectivity and authentication; it does not establish sender
+approval, recipient acceptance or eventual inbox delivery.
+
+Keep `transport: file` during validation. Changing production configuration or
+sending real invitations requires the operator's approval. Verify the SMTP
+endpoint, TLS mode, sender authorization and public URL before switching.
+No connectivity check runs automatically at application startup or page load.
+
 ## Administrator guide
 
 1. Open **Guests**, create a draft and verify its email address and requested
    access details.
 2. Open the guest details and select **Send Invitation**.
-3. Choose the invitation validity in hours, then confirm **Send invitation**.
+3. Choose the invitation validity in hours (default 24, independent of access duration), then confirm **Send invitation**.
 4. Filter the guest list by **Pending** to review outstanding invitations. The
    list and details show the invitation deadline and last successful send.
 5. Review the delivery state and event history in the details.
@@ -149,7 +172,9 @@ confirmation until that temporary session expires.
 
 ## Lifecycle and storage
 
-Drafts retain the original phase-one `guests` schema and its restrictions.
+Drafts retain the phase-one schema and restrictions, with a versioned
+constraint upgrade adding 12-hour access intentions. See the
+[access plan migration and revocation contract](/features/guest-management).
 Issuing a draft creates a separate `guest_invitations` record; its status drives
 the invitation presentation. A guest request has at most one invitation record,
 while separate requests may still use the same normalized email address.
@@ -240,7 +265,7 @@ pnpm typecheck
 pnpm lint
 pnpm test:unit
 pnpm build
-pnpm test:integration tests/integration/headplane/guest-invitations.test.ts tests/integration/headplane/guest-mail.test.ts tests/integration/headplane/guests.test.ts tests/integration/headplane/permissions.test.ts
+pnpm test:integration tests/integration/headplane/guest-invitations.test.ts tests/integration/headplane/guest-mail.test.ts tests/integration/headplane/guest-email-settings.test.ts tests/integration/headplane/guests.test.ts tests/integration/headplane/permissions.test.ts
 HP_HEADSCALE_VERSIONS=all pnpm test:integration tests/integration/headplane/guest-invitations.test.ts
 ```
 

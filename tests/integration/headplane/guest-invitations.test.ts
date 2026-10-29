@@ -49,7 +49,7 @@ describe.for(testedVersions())("guest invitations alongside Headscale %s", (vers
         intent: "create",
         email: `invited-${++sequence}@example.test`,
         display_name: "Invited guest",
-        duration: "86400",
+        duration: "43200",
       },
     });
     expect(statusOf(created)).toBe(200);

@@ -4,9 +4,9 @@ import { join } from "node:path";
 import { backup, DatabaseSync } from "node:sqlite";
 
 import { drizzle } from "drizzle-orm/node-sqlite";
-import { migrate } from "drizzle-orm/node-sqlite/migrator";
 import { expect, test } from "vitest";
 
+import { migrate } from "~/server/db/migrate";
 import { authSessions, hostInfo, users } from "~/server/db/schema";
 import { createGuestService } from "~/server/guests";
 

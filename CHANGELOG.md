@@ -2,6 +2,8 @@
 
 ## Upgrading
 
+- Back up the Headplane SQLite database before upgrading guest management. The 12-hour access option requires a transactional rebuild of the guest table that preserves existing records and invitation references. Retain the broader constraint when rolling back the application.
+
 - DNS records are only read from and written to the file in Headscale's `dns.extra_records_path`. Records listed inline under `dns.extra_records` show as read-only, so move them into the file to keep editing them.
 - The `proc` and `kubernetes` integrations now restart Headscale instead of reloading it, so Headscale needs a supervisor that brings it back: systemd with `Restart=always`, which Headscale's own unit and the NixOS module already set, or the kubelet.
 - Enabling more than one integration now turns them all off, with an error in the log. Keep one.
@@ -9,6 +11,8 @@
 - Builds no longer read `__INTERNAL_PREFIX`. If a build used it to serve Headplane somewhere other than `/admin`, set `server.base_path` to that path instead.
 
 ## Changes
+
+- Guest drafts now use a single access-duration choice: 12 hours, 48 hours, 7 days or a custom date in the browser’s time zone. Invitation validity, future VPN access and audit retention are shown separately. Guest emails include the access intention, and admins can check SMTP connectivity from Settings without sending a message. No VPN access is provisioned.
 
 - Guest requests can now be issued as email invitations with configurable SMTP or a local development transport. Recipients verify their mailbox with a separate code before accepting; links are single-use, rotate on resend, expire automatically, and have an administrative event history. Invitations remain disabled until configured and never activate VPN access.
 - Owners and admins can prepare guest requests from the new **Guests** page, with searchable drafts, requested access durations, administrative notes, and revocation history. This first phase stores requests in Headplane only; it sends no invitations and grants no VPN access.

@@ -2,9 +2,9 @@ import { cp, readdir } from "node:fs/promises";
 import { join } from "node:path";
 
 import { drizzle } from "drizzle-orm/node-sqlite";
-import { migrate } from "drizzle-orm/node-sqlite/migrator";
 import { expect, test } from "vitest";
 
+import { migrate } from "~/server/db/migrate";
 import { guests } from "~/server/db/schema";
 import { createInvitationService } from "~/server/guest-invitations";
 import type { GuestMail } from "~/server/guest-mail";
