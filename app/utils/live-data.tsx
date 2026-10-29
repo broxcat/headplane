@@ -7,7 +7,7 @@ import {
   useRef,
   useState,
 } from "react";
-import { useHref, useRevalidator } from "react-router";
+import { useHref, useLocation, useRevalidator } from "react-router";
 
 const LiveDataContext = createContext({
   paused: false,
@@ -28,6 +28,7 @@ export function LiveDataProvider({ children }: LiveDataProps) {
   const revalidator = useRevalidator();
   const liveUrl = useHref("/events/live");
   const [paused, setPaused] = useState(false);
+  const isInvitation = useLocation().pathname.replace(/\/+$/, "") === "/invite";
 
   // This ref is a bit sus but it's needed to ensure the SSE handshake does
   // not re-establish on every revalidation. The SSE stream is always stable
@@ -49,7 +50,7 @@ export function LiveDataProvider({ children }: LiveDataProps) {
 
   // SSE connection
   useEffect(() => {
-    if (paused) {
+    if (paused || isInvitation) {
       if (eventSourceRef.current) {
         eventSourceRef.current.close();
         eventSourceRef.current = null;
@@ -112,7 +113,7 @@ export function LiveDataProvider({ children }: LiveDataProps) {
         reconnectTimer.current = null;
       }
     };
-  }, [paused, revalidateIfIdle, liveUrl]);
+  }, [paused, isInvitation, revalidateIfIdle, liveUrl]);
 
   // If the tab becomes visible and is marked dirty, revalidate
   useEffect(() => {

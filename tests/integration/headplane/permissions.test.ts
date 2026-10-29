@@ -27,6 +27,8 @@ const PUBLIC = new Set([
   "routes/auth/oidc-callback.ts",
   "routes/auth/link.tsx",
   "routes/home.tsx",
+  // This route returns only a session-bound invitation flow, never tailnet data.
+  "routes/guests/accept.tsx",
 ]);
 
 // Members get only access flags or change notifications from these.

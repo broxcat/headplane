@@ -320,3 +320,22 @@ integration:
 #   # of custom hinting.
 #   extra_params:
 #     prompt: "select_account" # Example: force account selection on Google
+
+# Optional administrative guest invitations. This grants no VPN access.
+# See https://headplane.net/features/guest-invitations for the complete setup.
+# Set server.base_url to the public HTTPS origin and keep cookie_secure enabled.
+# guest_invitations:
+#   enabled: true
+#   transport: smtp # Use file only in an isolated development environment.
+#   from_address: invitations@example.com
+#   from_name: Network administration
+#   service_name: Headplane
+#   max_validity_hours: 168
+#   timeout_ms: 10000
+#   retries: 1
+#   smtp:
+#     host: smtp.example.com
+#     port: 587
+#     security: starttls # Or tls with an implicit TLS endpoint (usually 465).
+#     username_path: /run/secrets/smtp-username
+#     password_path: /run/secrets/smtp-password

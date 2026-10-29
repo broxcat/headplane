@@ -89,3 +89,129 @@ export const guests = sqliteTable(
 );
 
 export type Guest = typeof guests.$inferSelect;
+
+export const guestInvitations = sqliteTable(
+  "guest_invitations",
+  {
+    id: text("id").primaryKey(),
+    guest_id: text("guest_id")
+      .notNull()
+      .unique()
+      .references(() => guests.id),
+    email: text("email").notNull(),
+    status: text("status", { enum: ["draft", "pending", "accepted", "expired", "revoked"] })
+      .notNull()
+      .default("draft"),
+    token_hash: text("token_hash").unique(),
+    token_version: integer("token_version").notNull().default(0),
+    created_at: integer("created_at", { mode: "timestamp" }).notNull(),
+    issued_at: integer("issued_at", { mode: "timestamp" }),
+    expires_at: integer("expires_at", { mode: "timestamp" }),
+    accepted_at: integer("accepted_at", { mode: "timestamp" }),
+    revoked_at: integer("revoked_at", { mode: "timestamp" }),
+    send_count: integer("send_count").notNull().default(0),
+    last_sent_at: integer("last_sent_at", { mode: "timestamp" }),
+    verification_sent_at: integer("verification_sent_at", { mode: "timestamp" }),
+    created_by: text("created_by"),
+    revision: integer("revision").notNull().default(1),
+    delivery_state: text("delivery_state", { enum: ["idle", "sending", "sent", "failed"] })
+      .notNull()
+      .default("idle"),
+    delivery_id: text("delivery_id"),
+    delivery_started_at: integer("delivery_started_at", { mode: "timestamp" }),
+  },
+  (table) => [
+    index("guest_invitations_expiry_idx").on(table.status, table.expires_at),
+    check(
+      "guest_invitation_status",
+      sql`${table.status} IN ('draft','pending','accepted','expired','revoked')`,
+    ),
+    check(
+      "guest_invitation_delivery",
+      sql`${table.delivery_state} IN ('idle','sending','sent','failed')`,
+    ),
+    check(
+      "guest_invitation_terminal_token",
+      sql`${table.status} IN ('draft','pending') OR ${table.token_hash} IS NULL`,
+    ),
+    check(
+      "guest_invitation_pending_dates",
+      sql`${table.status} != 'pending' OR (${table.issued_at} IS NOT NULL AND ${table.expires_at} IS NOT NULL AND ${table.expires_at} > ${table.issued_at})`,
+    ),
+    check(
+      "guest_invitation_acceptance",
+      sql`(${table.status} = 'accepted' AND ${table.accepted_at} IS NOT NULL) OR (${table.status} != 'accepted' AND ${table.accepted_at} IS NULL)`,
+    ),
+    check(
+      "guest_invitation_revocation",
+      sql`(${table.status} = 'revoked' AND ${table.revoked_at} IS NOT NULL) OR (${table.status} != 'revoked' AND ${table.revoked_at} IS NULL)`,
+    ),
+    check(
+      "guest_invitation_counters",
+      sql`${table.send_count} >= 0 AND ${table.token_version} >= 0 AND ${table.revision} >= 1`,
+    ),
+  ],
+);
+export type GuestInvitation = typeof guestInvitations.$inferSelect;
+
+export const guestInvitationSessions = sqliteTable(
+  "guest_invitation_sessions",
+  {
+    id_hash: text("id_hash").primaryKey(),
+    invitation_id: text("invitation_id")
+      .notNull()
+      .references(() => guestInvitations.id),
+    token_version: integer("token_version").notNull(),
+    expires_at: integer("expires_at", { mode: "timestamp" }).notNull(),
+    code_hash: text("code_hash"),
+    code_expires_at: integer("code_expires_at", { mode: "timestamp" }),
+    code_ready: integer("code_ready", { mode: "boolean" }).notNull().default(false),
+    attempts: integer("attempts").notNull().default(0),
+  },
+  (table) => [
+    index("guest_invitation_sessions_expiry_idx").on(table.expires_at),
+    index("guest_invitation_sessions_invitation_idx").on(table.invitation_id),
+    check(
+      "guest_invitation_code_ready",
+      sql`${table.code_ready} = 0 OR (${table.code_hash} IS NOT NULL AND ${table.code_expires_at} IS NOT NULL)`,
+    ),
+  ],
+);
+
+export const guestInvitationEvents = sqliteTable(
+  "guest_invitation_events",
+  {
+    id: text("id").primaryKey(),
+    invitation_id: text("invitation_id")
+      .notNull()
+      .references(() => guestInvitations.id),
+    kind: text("kind", {
+      enum: [
+        "created",
+        "sent",
+        "resent",
+        "accepted",
+        "expired",
+        "revoked",
+        "delivery_failed",
+        "verification_sent",
+        "verification_failed",
+      ],
+    }).notNull(),
+    created_at: integer("created_at", { mode: "timestamp" }).notNull(),
+    actor_id: text("actor_id"),
+  },
+  (table) => [
+    index("guest_invitation_events_invitation_idx").on(
+      table.invitation_id,
+      table.created_at,
+      table.id,
+    ),
+  ],
+);
+
+export const guestInvitationLimits = sqliteTable("guest_invitation_limits", {
+  key_hash: text("key_hash").primaryKey(),
+  window_start: integer("window_start").notNull(),
+  hits: integer("hits").notNull(),
+});

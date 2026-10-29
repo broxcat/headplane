@@ -8,6 +8,8 @@ import type { HeadplaneConfig } from "./config/config-schema";
 import { loadIntegration } from "./config/integration";
 import { createDbClient } from "./db/client.server";
 import { disabled, enabled, type Feature } from "./feature";
+import { createInvitationService } from "./guest-invitations";
+import { createGuestMailer, invitationPublicUrl } from "./guest-mail";
 import { createGuestService } from "./guests";
 import { createHeadscale, type HeadscaleClient } from "./headscale/api";
 import { loadHeadscaleConfig } from "./headscale/config-loader";
@@ -22,6 +24,7 @@ export const appConfigContext = createContext<AppContext["config"]>();
 export const authContext = createContext<AppContext["auth"]>();
 export const dbContext = createContext<AppContext["db"]>();
 export const guestsContext = createContext<AppContext["guests"]>();
+export const invitationsContext = createContext<AppContext["invitations"]>();
 export const headscaleContext = createContext<AppContext["headscale"]>();
 export const headscaleApiKeyContext = createContext<AppContext["headscaleApiKey"]>();
 export const headscaleConfigContext = createContext<AppContext["hs"]>();
@@ -33,6 +36,22 @@ export const requestApiContext = createContext<AppContext["apiForRequest"]>();
 export async function createAppContext(config: HeadplaneConfig) {
   const db = await createDbClient(join(config.server.data_path, "hp_persist.db"));
   const guests = createGuestService(db);
+  const mailer = await createGuestMailer(config);
+  const invitations = createInvitationService({
+    db,
+    mailer,
+    secret: config.server.cookie_secret,
+    publicUrl: config.guest_invitations?.enabled ? invitationPublicUrl(config) : undefined,
+    serviceName: config.guest_invitations?.service_name,
+    maxValidityHours: config.guest_invitations?.max_validity_hours,
+    deliveryLeaseMs: Math.max(
+      120_000,
+      ((config.guest_invitations?.retries ?? 1) + 1) *
+        (config.guest_invitations?.timeout_ms ?? 10_000) *
+        4 +
+        30_000,
+    ),
+  });
   const headscale = await createHeadscale({
     url: config.headscale.url,
     certPath: config.headscale.tls_cert_path,
@@ -82,6 +101,7 @@ export async function createAppContext(config: HeadplaneConfig) {
   const integration = await loadIntegration(config.integration);
   const disposers: Array<() => Promise<void> | void> = [
     () => auth.stop(),
+    () => invitations.stop(),
     () => hsLive.dispose(),
     () => headscale.dispose(),
   ];
@@ -100,6 +120,7 @@ export async function createAppContext(config: HeadplaneConfig) {
 
   function startServices() {
     auth.start();
+    invitations.start();
   }
 
   async function dispose() {
@@ -117,6 +138,7 @@ export async function createAppContext(config: HeadplaneConfig) {
     db,
     headscale,
     guests,
+    invitations,
     headscaleApiKey,
     agents,
     auth,
@@ -137,6 +159,7 @@ export function createRouterContext(ctx: AppContext) {
   context.set(authContext, ctx.auth);
   context.set(dbContext, ctx.db);
   context.set(guestsContext, ctx.guests);
+  context.set(invitationsContext, ctx.invitations);
   context.set(headscaleContext, ctx.headscale);
   context.set(headscaleApiKeyContext, ctx.headscaleApiKey);
   context.set(headscaleConfigContext, ctx.hs);
