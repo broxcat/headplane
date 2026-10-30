@@ -205,12 +205,15 @@ export function packageGuest(tag: string, output: string) {
     for (const path of [
       "LICENSE",
       "config.example.yaml",
-      "README.md",
       "release/INSTALL.md",
       "release/RELEASE-NOTES.md",
       "release/headplane.service.example",
     ])
       cpSync(join(root, path), join(target, basename(path)));
+    writeFileSync(
+      join(target, "README.md"),
+      `# Headplane ${version} — Guest fork\n\nLinux AMD64 archive. Node.js 24 is required separately; no runtime node_modules is needed.\n\n- [Installation, update and rollback](INSTALL.md)\n- [Release notes and limitations](RELEASE-NOTES.md)\n- [Guest management](docs/guest-management.md)\n- [Invitations and SMTP](docs/guest-invitations.md)\n- [Version and source metadata](release.json)\n- [Third-party notices](THIRD_PARTY_NOTICES.md)\n\nOriginal Headplane by Aarnav Tale and contributors: https://github.com/tale/headplane. Guest fork: https://github.com/broxcat/headplane. Keep LICENSE and THIRD_PARTY/ with redistributed copies. Guest acceptance grants no VPN access.\n`,
+    );
     mkdirSync(join(target, "docs"));
     for (const file of ["guest-management.md", "guest-invitations.md"])
       cpSync(join(root, "docs/features", file), join(target, "docs", file));
