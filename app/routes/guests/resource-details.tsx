@@ -93,7 +93,7 @@ export default function ResourceDetails({
           The source placeholder is intentionally unbound and invalid for provisioning. Stale
           resources are excluded. A narrower allow rule cannot cancel existing allow rules.
         </p>
-        <pre className="bg-surface-raised border-line max-h-72 overflow-auto rounded-md border p-3 text-xs">
+        <pre className="bg-surface border-line max-h-72 overflow-auto rounded-md border p-3 text-xs">
           {JSON.stringify({ acls: preview.proposed }, null, 2)}
         </pre>
         <h3 className="mt-5 mb-2 font-medium">Existing permissions — potentially effective</h3>
@@ -101,7 +101,7 @@ export default function ResourceDetails({
           These rules are current policy expressions, not verified access for this guest. Source
           membership, tag expansion, routing and policy extensions remain unresolved.
         </p>
-        <pre className="bg-surface-raised border-line max-h-72 overflow-auto rounded-md border p-3 text-xs">
+        <pre className="bg-surface border-line max-h-72 overflow-auto rounded-md border p-3 text-xs">
           {JSON.stringify(preview.existing, null, 2)}
         </pre>
       </Section>
