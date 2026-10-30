@@ -28,7 +28,7 @@ import { makePolicyApi, type PolicyApi } from "./resources/policy";
 import { makePreAuthKeyApi, type PreAuthKeyApi } from "./resources/pre-auth-keys";
 import { makeUserApi, type UserApi } from "./resources/users";
 import { formatServerVersion, parseServerVersion, type ServerVersion } from "./server-version";
-import { createTransport } from "./transport";
+import { createTransport, type Transport } from "./transport";
 
 const MIN_SUPPORTED_VERSION = "0.27.0";
 
@@ -38,7 +38,7 @@ export interface Headscale {
   /** True if the Headscale server's `/health` endpoint returns 200. */
   health(): Promise<boolean>;
   /** Build an API client bound to a specific Headscale API key. */
-  client(apiKey: string): HeadscaleClient;
+  client(apiKey: string, options?: { timeoutMs?: number }): HeadscaleClient;
   /** Stop background work and close the underlying HTTP agent. */
   dispose(): Promise<void>;
 }
@@ -144,14 +144,20 @@ export async function createHeadscale(opts: CreateHeadscaleOptions): Promise<Hea
       return capabilities;
     },
     health: () => transport.health(),
-    client(apiKey) {
+    client(apiKey, options) {
+      const scoped: Transport = options?.timeoutMs
+        ? {
+            ...transport,
+            request: (request) => transport.request({ ...request, timeoutMs: options.timeoutMs }),
+          }
+        : transport;
       return {
-        nodes: makeNodeApi(transport, capabilities, apiKey),
-        users: makeUserApi(transport, capabilities, apiKey),
-        policy: makePolicyApi(transport, capabilities, apiKey),
-        preAuthKeys: makePreAuthKeyApi(transport, capabilities, apiKey),
-        apiKeys: makeApiKeyApi(transport, capabilities, apiKey),
-        auth: makeAuthApi(transport, capabilities, apiKey),
+        nodes: makeNodeApi(scoped, capabilities, apiKey),
+        users: makeUserApi(scoped, capabilities, apiKey),
+        policy: makePolicyApi(scoped, capabilities, apiKey),
+        preAuthKeys: makePreAuthKeyApi(scoped, capabilities, apiKey),
+        apiKeys: makeApiKeyApi(scoped, capabilities, apiKey),
+        auth: makeAuthApi(scoped, capabilities, apiKey),
       };
     },
     async dispose() {

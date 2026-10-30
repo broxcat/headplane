@@ -1,3 +1,5 @@
+import { data } from "react-router";
+
 import ActionDialog from "~/components/action-dialog";
 import Attribute from "~/components/attribute";
 import Button from "~/components/button";
@@ -12,10 +14,10 @@ import {
   guestsContext,
   invitationsContext,
   guestResourcesContext,
+  guestVpnContext,
 } from "~/server/context";
 import { previewGuestAcl } from "~/server/guest-acl-preview";
 import { Capabilities } from "~/server/web/roles";
-import { accessDurationLabel } from "~/utils/guest-access";
 import { toastClientAction } from "~/utils/toast";
 
 import type { Route } from "./+types/detail";
@@ -24,6 +26,7 @@ import { guestDate } from "./format";
 import GuestDialog from "./guest-dialog";
 import ResourceDetails from "./resource-details";
 import { loadResourceCatalog, loadPreviewPolicy } from "./resources.server";
+import VpnDetails from "./vpn-details";
 
 export async function loader({ request, context, params }: Route.LoaderArgs) {
   await context.get(authContext).requireCapability(request, Capabilities.manage_guests);
@@ -35,7 +38,10 @@ export async function loader({ request, context, params }: Route.LoaderArgs) {
     loadPreviewPolicy(request, context),
   ]);
   const resources = guestData(context.get(guestResourcesContext).list(id));
+  const vpn = await context.get(guestVpnContext).get(id);
+  if (!vpn.ok) throw data("Guest access data could not be loaded.", { status: 503 });
   return {
+    vpn: vpn.value,
     catalog,
     resources,
     preview: previewGuestAcl({
@@ -64,6 +70,7 @@ export default function Page({
     catalog,
     resources,
     preview,
+    vpn,
   },
 }: Route.ComponentProps) {
   const state = invitation?.status ?? guest.status;
@@ -135,7 +142,7 @@ export default function Page({
       )}
       <Callout className="mb-6">
         {state === "accepted"
-          ? "Invitation accepted after email verification. No VPN or network access has been activated."
+          ? "Invitation accepted after email verification. Check Access below for the independent network status."
           : state === "pending"
             ? "Invitation pending. The recipient must verify their email and explicitly accept. No VPN access is active."
             : state === "expired"
@@ -184,8 +191,9 @@ export default function Page({
         </Section>
       )}
       <p className="text-muted mb-6 text-sm">
-        Guest records are retained for audit after invitation expiry or revocation. No automatic
-        deletion or VPN access revocation is performed.
+        Guest records are retained for audit after invitation expiry or revocation. Invitation
+        expiry does not delete the record or revoke VPN access; network expiry and revocation are
+        managed separately in Access.
       </p>
       {events.length > 0 && (
         <Section
@@ -216,22 +224,23 @@ export default function Page({
           then.
         </Callout>
       )}
-      <ResourceDetails guest={guest} resources={resources} catalog={catalog} preview={preview} />
-      <Section
-        title="Access"
-        description="Planning only. Saving a draft starts no access countdown."
-      >
-        <SettingList>
-          <Attribute name="Access status" value="VPN access not provisioned" />
-          <Attribute name="Access duration" value={accessDurationLabel(guest)} />
-          {guest.requested_expires_at && (
-            <Attribute name="Access expires at" value={guestDate(guest.requested_expires_at)} />
-          )}
-          <Attribute name="Activated at" value="Not provisioned" />
-          <Attribute name="Effective access expires at" value="Not provisioned" />
-          <Attribute name="Resources" value={`${resources.length} requested resource(s)`} />
-        </SettingList>
-      </Section>
+      <ResourceDetails
+        guest={guest}
+        resources={resources}
+        catalog={catalog}
+        preview={preview}
+        networkLocked={Boolean(
+          vpn.access && !["revoked", "expired", "not_provisioned"].includes(vpn.access.state),
+        )}
+        managed={vpn.access?.permission}
+        effectiveStatus={vpn.effectiveStatus}
+      />
+      <VpnDetails
+        vpn={vpn}
+        guest={guest}
+        accepted={state === "accepted"}
+        resourceCount={resources.length}
+      />
     </>
   );
 }

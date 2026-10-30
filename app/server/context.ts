@@ -11,6 +11,7 @@ import { disabled, enabled, type Feature } from "./feature";
 import { createInvitationService } from "./guest-invitations";
 import { createGuestMailer, invitationPublicUrl } from "./guest-mail";
 import { createGuestResourceService } from "./guest-resources";
+import { createGuestVpnService } from "./guest-vpn";
 import { createGuestService } from "./guests";
 import { createHeadscale, type HeadscaleClient } from "./headscale/api";
 import { loadHeadscaleConfig } from "./headscale/config-loader";
@@ -27,6 +28,7 @@ export const dbContext = createContext<AppContext["db"]>();
 export const guestMailerContext = createContext<AppContext["mailer"]>();
 export const guestResourcesContext = createContext<AppContext["guestResources"]>();
 export const guestsContext = createContext<AppContext["guests"]>();
+export const guestVpnContext = createContext<AppContext["guestVpn"]>();
 export const invitationsContext = createContext<AppContext["invitations"]>();
 export const headscaleContext = createContext<AppContext["headscale"]>();
 export const headscaleApiKeyContext = createContext<AppContext["headscaleApiKey"]>();
@@ -59,6 +61,12 @@ export async function createAppContext(config: HeadplaneConfig) {
   const headscale = await createHeadscale({
     url: config.headscale.url,
     certPath: config.headscale.tls_cert_path,
+  });
+  const guestVpn = createGuestVpnService({
+    db,
+    headscale,
+    config,
+    verifiedInvitation: invitations.verifiedGuest,
   });
 
   // TODO: Remove this fallback on Headplane 1.0.0
@@ -108,6 +116,7 @@ export async function createAppContext(config: HeadplaneConfig) {
     () => invitations.stop(),
     () => hsLive.dispose(),
     () => headscale.dispose(),
+    () => guestVpn.stop(),
   ];
 
   if (agents.state === "enabled") {
@@ -119,12 +128,16 @@ export async function createAppContext(config: HeadplaneConfig) {
   ): Promise<{ principal: Principal; api: HeadscaleClient }> {
     const principal = await auth.require(request);
     const apiKey = auth.getHeadscaleApiKey(principal);
-    return { principal, api: headscale.client(apiKey) };
+    return {
+      principal,
+      api: headscale.client(apiKey, guestVpn.enabled ? { timeoutMs: 15_000 } : undefined),
+    };
   }
 
   function startServices() {
     auth.start();
     invitations.start();
+    guestVpn.start();
   }
 
   async function dispose() {
@@ -143,6 +156,7 @@ export async function createAppContext(config: HeadplaneConfig) {
     headscale,
     guests,
     guestResources,
+    guestVpn,
     mailer,
     invitations,
     headscaleApiKey,
@@ -165,6 +179,7 @@ export function createRouterContext(ctx: AppContext) {
   context.set(authContext, ctx.auth);
   context.set(dbContext, ctx.db);
   context.set(guestsContext, ctx.guests);
+  context.set(guestVpnContext, ctx.guestVpn);
   context.set(guestResourcesContext, ctx.guestResources);
   context.set(guestMailerContext, ctx.mailer);
   context.set(invitationsContext, ctx.invitations);

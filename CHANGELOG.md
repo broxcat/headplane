@@ -2,9 +2,13 @@
 
 ## Upgrading
 
+- Keep Guest VPN provisioning disabled until a clean Headscale 0.29 server, database policy mode and Headplane as the exclusive policy writer have been validated. Back up SQLite before the additive network-lifecycle migration. Revoke and verify every Guest access before disabling the feature, downgrading or removing its API key.
+
 - Back up SQLite before upgrading. The additive Guest resources migration creates a new intentions table; retain it and migration history when rolling back the application. No Headscale policy is changed.
 
 ## Changes
+
+- Administrators can opt in to dedicated Guest identities, verified interactive device onboarding, managed ACL/Grant permissions, immediate revocation and native device expiry. Durable reconciliation detects drift and refuses uncertain isolation; existing installations keep provisioning disabled.
 
 - Guests can request explicit TCP/UDP ports on Headscale machines or declared private LAN services behind announced and approved routes. A read-only ACL preview highlights permissive policies, stale machines and unresolved isolation; it never provisions VPN access.
 

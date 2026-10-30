@@ -13,7 +13,7 @@ import { tempDir } from "../../support/temp";
 test("the additive resource migration preserves the 11-migration database and resource intentions survive reopening", async () => {
   const dir = await tempDir();
   const prior = join(dir, "prior");
-  for (const folder of (await readdir("drizzle")).filter((f) => !f.endsWith("_guest_resources")))
+  for (const folder of (await readdir("drizzle")).filter((f) => f < "20261030124826"))
     await cp(join("drizzle", folder), join(prior, folder), { recursive: true });
   const path = join(dir, "copy.db");
   const db = drizzle(path);
@@ -26,7 +26,9 @@ test("the additive resource migration preserves the 11-migration database and re
   const existing = db.$client.prepare("SELECT * FROM guests").all();
   migrate(db, { migrationsFolder: "drizzle" });
   expect(db.$client.prepare("SELECT * FROM guests").all()).toEqual(existing);
-  expect(db.$client.prepare("SELECT count(*) AS n FROM __drizzle_migrations").get()?.n).toBe(12);
+  expect(db.$client.prepare("SELECT count(*) AS n FROM __drizzle_migrations").get()?.n).toBe(
+    (await readdir("drizzle")).length,
+  );
   const node = {
     id: "1",
     name: "machine",

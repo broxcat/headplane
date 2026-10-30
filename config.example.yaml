@@ -341,3 +341,10 @@ integration:
 #     security: starttls # Or tls with an implicit TLS endpoint (usually 465).
 #     username_path: /run/secrets/smtp-username
 #     password_path: /run/secrets/smtp-password
+
+# Optional Guest VPN lifecycle, disabled by default. Read the Guest VPN guide.
+# Requires a clean Headscale 0.29 release, database policy mode, a server-side
+# API key and Headplane as the ONLY policy writer (including CLI/automation).
+# guest_vpn:
+#   enabled: false
+#   single_policy_writer: false

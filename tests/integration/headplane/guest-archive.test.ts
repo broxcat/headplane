@@ -54,7 +54,7 @@ test.runIf(process.env.HP_GUEST_ARCHIVE)(
       ]);
       expect(JSON.parse(check.stdout)).toEqual({
         nodeModules: false,
-        migrations: 12,
+        migrations: 13,
         plan: { requested_duration_seconds: 43200, activated_at: null, expires_at: null },
       });
       expect(await tailnet.api.policy.get()).toEqual(before);

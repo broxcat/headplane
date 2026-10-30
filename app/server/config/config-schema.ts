@@ -288,6 +288,10 @@ export const headplaneConfig = type({
   oidc: oidcConfig.optional(),
   integration: integrationConfig.optional(),
   guest_invitations: invitationConfig.optional(),
+  "guest_vpn?": {
+    enabled: "boolean = false",
+    single_policy_writer: "boolean = false",
+  },
 }).onDeepUndeclaredKey("delete");
 
 export const partialHeadplaneConfig = type({
@@ -297,6 +301,10 @@ export const partialHeadplaneConfig = type({
   oidc: partialOidcConfig.optional(),
   integration: partialIntegrationConfig.optional(),
   guest_invitations: partialInvitationConfig.optional(),
+  "guest_vpn?": {
+    enabled: "boolean?",
+    single_policy_writer: "boolean?",
+  },
 });
 
 export type HeadplaneConfig = typeof headplaneConfig.infer;

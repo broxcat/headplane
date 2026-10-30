@@ -16,6 +16,7 @@ export interface HeadplaneConfigOptions {
   integration?: Record<string, unknown>;
   oidc?: Record<string, unknown>;
   guestInvitations?: Record<string, unknown>;
+  guestVpn?: Record<string, unknown>;
 }
 
 export async function writeHeadplaneConfig(tailnet: Tailnet, options: HeadplaneConfigOptions) {
@@ -50,6 +51,7 @@ export async function writeHeadplaneConfig(tailnet: Tailnet, options: HeadplaneC
       },
       oidc: options.oidc,
       guest_invitations: options.guestInvitations,
+      guest_vpn: options.guestVpn,
     }),
   );
 
@@ -67,6 +69,14 @@ export function startHeadplane(
 
   return spawn(command, args, {
     stdio: "inherit",
-    env: { ...process.env, ...env, HEADPLANE_CONFIG_PATH: configPath },
+    // Never inherit an operator's production configuration overrides or
+    // health-marker path into an isolated browser/integration instance.
+    env: {
+      ...Object.fromEntries(
+        Object.entries(process.env).filter(([key]) => !key.startsWith("HEADPLANE_")),
+      ),
+      ...env,
+      HEADPLANE_CONFIG_PATH: configPath,
+    },
   });
 }

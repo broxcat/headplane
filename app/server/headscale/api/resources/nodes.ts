@@ -14,6 +14,7 @@ interface RawMachine extends Omit<Machine, "tags"> {
 export const KEY_EXPIRY_DAYS = 180;
 
 export interface NodeApi {
+  expireAt(id: string, at: Date): Promise<void>;
   list(): Promise<Machine[]>;
   get(id: string): Promise<Machine>;
   delete(id: string): Promise<void>;
@@ -44,6 +45,13 @@ export function makeNodeApi(
   }
 
   const api: NodeApi = {
+    expireAt: async (id, at) => {
+      await transport.request({
+        method: "POST",
+        path: `v1/node/${id}/expire?expiry=${encodeURIComponent(at.toISOString())}`,
+        apiKey,
+      });
+    },
     list: async () => {
       const { nodes } = await transport.request<{ nodes: RawMachine[] }>({
         method: "GET",

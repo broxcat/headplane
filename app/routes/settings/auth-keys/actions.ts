@@ -1,6 +1,7 @@
 import * as v from "valibot";
 
-import { authContext, requestApiContext } from "~/server/context";
+import { requireNonGuestUser } from "~/routes/guests/identity-guard.server";
+import { authContext, requestApiContext, guestVpnContext } from "~/server/context";
 import { ActionError, createAction } from "~/server/web/actions";
 import { ownsHeadscaleUser } from "~/server/web/headscale-identity";
 import { Capabilities } from "~/server/web/roles";
@@ -46,7 +47,7 @@ export const authKeysAction = createAction({
       }
     }
 
-    return { principal, api, canGenerateAny, requireOwnUser };
+    return { principal, api, canGenerateAny, requireOwnUser, vpn: context.get(guestVpnContext) };
   },
   intents: {
     create: {
@@ -57,7 +58,8 @@ export const authKeysAction = createAction({
         reusable: switchValue,
         ephemeral: switchValue,
       },
-      async handler(input, { api, canGenerateAny, requireOwnUser }) {
+      async handler(input, { api, canGenerateAny, requireOwnUser, vpn }) {
+        if (input.user_id) await requireNonGuestUser(vpn, api, input.user_id);
         const tags = input.tags.map((tag) => tag.trim()).filter((tag) => tag !== "");
         const user = input.user_id || null;
         if (!user && tags.length === 0) {

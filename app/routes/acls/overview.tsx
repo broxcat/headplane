@@ -40,7 +40,7 @@ export const action = aclAction;
 export const clientAction = toastClientAction;
 
 export default function Page({
-  loaderData: { access, writable, canEditGrants, policy, users, tagUsage },
+  loaderData: { access, writable, canEditGrants, policy, users, tagUsage, policyRevision },
 }: Route.ComponentProps) {
   const [codePolicy, setCodePolicy] = useState(policy);
   const [savedPolicy, setSavedPolicy] = useState(policy);
@@ -220,7 +220,10 @@ export default function Page({
           codePolicy === policy
         }
         onClick={() => {
-          fetcher.submit({ intent: "save", policy: codePolicy }, { method: "POST" });
+          fetcher.submit(
+            { intent: "save", policy: codePolicy, policy_revision: policyRevision },
+            { method: "POST" },
+          );
         }}
         variant="primary"
       >

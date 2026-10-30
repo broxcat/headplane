@@ -4,6 +4,7 @@ import * as v from "valibot";
 import {
   authContext,
   guestsContext,
+  guestVpnContext,
   invitationsContext,
   guestResourcesContext,
 } from "~/server/context";
@@ -99,9 +100,55 @@ export const editGuestAction = createAction({
       context,
       id: params.id ?? "",
       invitations: context.get(invitationsContext),
+      vpn: context.get(guestVpnContext),
     };
   },
   intents: {
+    provision_access: {
+      capability: Capabilities.write_policy,
+      fields: { revision: guestRevision },
+      async handler(input, { vpn, id, principal, request, context }) {
+        requireResourceOrigin(request, context);
+        const result = await vpn.provision(
+          id,
+          input.revision,
+          isUserPrincipal(principal) ? principal.user.id : null,
+        );
+        if (!result.ok) throw new ActionError(result.error.message, 409);
+        return ok(
+          "Guest provisioning verified. Await device onboarding if no device is registered.",
+        );
+      },
+    },
+    revoke_access: {
+      capability: Capabilities.write_policy,
+      fields: { revision: guestRevision },
+      async handler(input, { vpn, id, principal, request, context }) {
+        requireResourceOrigin(request, context);
+        const result = await vpn.revoke(
+          id,
+          input.revision,
+          isUserPrincipal(principal) ? principal.user.id : null,
+        );
+        if (!result.ok) throw new ActionError(result.error.message, 409);
+        return ok("Guest access revoked and device expiry verified.");
+      },
+    },
+    expire_device: {
+      capability: Capabilities.write_machines,
+      fields: { revision: guestRevision, node_id: v.pipe(v.string(), v.regex(/^[1-9]\d{0,19}$/)) },
+      async handler(input, { vpn, id, principal, request, context }) {
+        requireResourceOrigin(request, context);
+        const result = await vpn.expireDevice(
+          id,
+          input.revision,
+          input.node_id,
+          isUserPrincipal(principal) ? principal.user.id : null,
+        );
+        if (!result.ok) throw new ActionError(result.error.message, 409);
+        return ok("Guest device expired and access revoked.");
+      },
+    },
     save_resources: {
       fields: { revision: guestRevision, resources: resourcesField },
       async handler(input, { resources, id, request, context }) {

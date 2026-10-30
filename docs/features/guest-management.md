@@ -12,6 +12,10 @@ Saving a draft never grants VPN access or starts an access countdown.
 
 ## Manage guests
 
+For optional network provisioning after invitation acceptance, follow
+[Guest VPN access](/features/guest-vpn). Provisioning remains disabled by default;
+the planning fields below are separate from confirmed network access.
+
 Open **Guests** in the administration navigation and select **Add Guest**.
 Enter an email address, optionally a display name and administrative notes, and
 choose **Access duration**: **12 hours**, **48 hours**, **7 days**, or **Custom date**.

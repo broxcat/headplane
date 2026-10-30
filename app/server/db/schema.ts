@@ -251,3 +251,143 @@ export const guestInvitationLimits = sqliteTable("guest_invitation_limits", {
   window_start: integer("window_start").notNull(),
   hits: integer("hits").notNull(),
 });
+
+// Network lifecycle is separate from retained guest records and invitations.
+export const guestVpnAccess = sqliteTable(
+  "guest_vpn_access",
+  {
+    guest_id: text("guest_id")
+      .primaryKey()
+      .references(() => guests.id),
+    user_name: text("user_name").notNull().unique(),
+    user_marker: text("user_marker").notNull(),
+    headscale_user_id: text("headscale_user_id").unique(),
+    state: text("state", {
+      enum: [
+        "not_provisioned",
+        "provisioning",
+        "active",
+        "revoking",
+        "revoked",
+        "expired",
+        "error",
+      ],
+    })
+      .notNull()
+      .default("not_provisioned"),
+    desired_state: text("desired_state", { enum: ["active", "revoked", "expired"] })
+      .notNull()
+      .default("active"),
+    phase: text("phase").notNull().default("prepared"),
+    permission: text("permission", { mode: "json" }).$type<
+      import("../guest-vpn-policy").ManagedPermission
+    >(),
+    activated_at: integer("activated_at", { mode: "timestamp_ms" }),
+    expires_at: integer("expires_at", { mode: "timestamp_ms" }),
+    revoked_at: integer("revoked_at", { mode: "timestamp_ms" }),
+    created_at: integer("created_at", { mode: "timestamp_ms" }).notNull(),
+    updated_at: integer("updated_at", { mode: "timestamp_ms" }).notNull(),
+    last_sync_at: integer("last_sync_at", { mode: "timestamp_ms" }),
+    revision: integer("revision").notNull().default(1),
+    attempts: integer("attempts").notNull().default(0),
+    retry_at: integer("retry_at", { mode: "timestamp_ms" }),
+    error_code: text("error_code"),
+  },
+  (t) => [
+    index("guest_vpn_due_idx").on(t.state, t.expires_at, t.retry_at),
+    check(
+      "guest_vpn_state",
+      sql`${t.state} IN ('not_provisioned','provisioning','active','revoking','revoked','expired','error')`,
+    ),
+    check("guest_vpn_desired", sql`${t.desired_state} IN ('active','revoked','expired')`),
+    check(
+      "guest_vpn_active_dates",
+      sql`${t.state} != 'active' OR (${t.headscale_user_id} IS NOT NULL AND ${t.permission} IS NOT NULL AND ${t.activated_at} IS NOT NULL AND ${t.expires_at} > ${t.activated_at})`,
+    ),
+    check("guest_vpn_counters", sql`${t.revision} >= 1 AND ${t.attempts} >= 0`),
+  ],
+);
+export type GuestVpnAccess = typeof guestVpnAccess.$inferSelect;
+
+export const guestVpnDevices = sqliteTable(
+  "guest_vpn_devices",
+  {
+    node_id: text("node_id").primaryKey(),
+    guest_id: text("guest_id")
+      .notNull()
+      .references(() => guests.id),
+    machine_key_hash: text("machine_key_hash").notNull(),
+    state: text("state", { enum: ["registered", "expired", "missing"] }).notNull(),
+    created_at: integer("created_at", { mode: "timestamp_ms" }).notNull(),
+    updated_at: integer("updated_at", { mode: "timestamp_ms" }).notNull(),
+  },
+  (t) => [
+    index("guest_vpn_devices_guest_idx").on(t.guest_id),
+    check("guest_vpn_device_state", sql`${t.state} IN ('registered','expired','missing')`),
+  ],
+);
+
+export const guestVpnAuthClaims = sqliteTable(
+  "guest_vpn_auth_claims",
+  {
+    auth_hash: text("auth_hash").primaryKey(),
+    guest_id: text("guest_id")
+      .notNull()
+      .references(() => guests.id),
+    state: text("state", { enum: ["reserved", "consumed", "uncertain"] }).notNull(),
+    node_id: text("node_id"),
+    created_at: integer("created_at", { mode: "timestamp_ms" }).notNull(),
+  },
+  (t) => [
+    index("guest_vpn_claim_guest_idx").on(t.guest_id),
+    check("guest_vpn_claim_state", sql`${t.state} IN ('reserved','consumed','uncertain')`),
+  ],
+);
+
+export const guestVpnSessions = sqliteTable(
+  "guest_vpn_sessions",
+  {
+    id_hash: text("id_hash").primaryKey(),
+    guest_id: text("guest_id")
+      .notNull()
+      .references(() => guests.id),
+    expires_at: integer("expires_at", { mode: "timestamp_ms" }).notNull(),
+  },
+  (t) => [index("guest_vpn_sessions_expiry_idx").on(t.expires_at)],
+);
+
+export const guestVpnEvents = sqliteTable(
+  "guest_vpn_events",
+  {
+    id: text("id").primaryKey(),
+    guest_id: text("guest_id")
+      .notNull()
+      .references(() => guests.id),
+    kind: text("kind").notNull(),
+    code: text("code"),
+    node_id: text("node_id"),
+    actor_id: text("actor_id"),
+    created_at: integer("created_at", { mode: "timestamp_ms" }).notNull(),
+  },
+  (t) => [index("guest_vpn_events_guest_idx").on(t.guest_id, t.created_at)],
+);
+
+// All Headplane writers share this lease. External writers are prohibited by
+// the opt-in single-writer contract; no HTTP compare-and-swap is available.
+export const guestVpnPolicyState = sqliteTable(
+  "guest_vpn_policy_state",
+  {
+    id: integer("id").primaryKey(),
+    owner: text("owner"),
+    lease_until: integer("lease_until", { mode: "timestamp_ms" }),
+    expected_hash: text("expected_hash"),
+    before_policy: text("before_policy"),
+    candidate_policy: text("candidate_policy"),
+    pending_guest_id: text("pending_guest_id"),
+    pending_permission: text("pending_permission", { mode: "json" }).$type<
+      import("../guest-vpn-policy").ManagedPermission
+    >(),
+    pending_remove: integer("pending_remove", { mode: "boolean" }).notNull().default(false),
+  },
+  (t) => [check("guest_vpn_policy_singleton", sql`${t.id} = 1`)],
+);
