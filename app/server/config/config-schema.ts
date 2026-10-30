@@ -12,6 +12,8 @@ export const pathSupportedKeys = [
   "headscale.api_key",
   "oidc.client_secret",
   "oidc.headscale_api_key",
+  "guest_invitations.smtp.username",
+  "guest_invitations.smtp.password",
 ] as const;
 
 function normalizeStringArray(values: string[]): string[] {
@@ -241,12 +243,51 @@ export const partialIntegrationConfig = type({
   agent: partialAgentConfig.optional(),
 }).partial();
 
+const invitationConfig = type({
+  enabled: "boolean = false",
+  transport: '"smtp" | "file" = "smtp"',
+  service_name: 'string = "Headplane"',
+  from_address: 'string.email = "headplane@localhost.test"',
+  from_name: 'string = "Headplane"',
+  max_validity_hours: "1 <= number.integer <= 720 = 168",
+  timeout_ms: "1000 <= number.integer <= 30000 = 10000",
+  retries: "0 <= number.integer <= 2 = 1",
+  "smtp?": {
+    host: "string",
+    port: "1 <= number.integer <= 65535 = 587",
+    security: '"tls" | "starttls" = "starttls"',
+    username: "string?",
+    password: "string?",
+    ca_path: "string?",
+  },
+});
+
+const partialInvitationConfig = type({
+  enabled: "boolean?",
+  transport: '"smtp" | "file"?',
+  service_name: "string?",
+  from_address: "string.email?",
+  from_name: "string?",
+  max_validity_hours: "1 <= number.integer <= 720?",
+  timeout_ms: "1000 <= number.integer <= 30000?",
+  retries: "0 <= number.integer <= 2?",
+  "smtp?": {
+    host: "string?",
+    port: "1 <= number.integer <= 65535?",
+    security: '"tls" | "starttls"?',
+    username: "string?",
+    password: "string?",
+    ca_path: "string?",
+  },
+});
+
 export const headplaneConfig = type({
   debug: "boolean = false",
   server: serverConfig,
   headscale: headscaleConfig,
   oidc: oidcConfig.optional(),
   integration: integrationConfig.optional(),
+  guest_invitations: invitationConfig.optional(),
 }).onDeepUndeclaredKey("delete");
 
 export const partialHeadplaneConfig = type({
@@ -255,6 +296,7 @@ export const partialHeadplaneConfig = type({
   headscale: partialHeadscaleConfig.optional(),
   oidc: partialOidcConfig.optional(),
   integration: partialIntegrationConfig.optional(),
+  guest_invitations: partialInvitationConfig.optional(),
 });
 
 export type HeadplaneConfig = typeof headplaneConfig.infer;

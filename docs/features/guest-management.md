@@ -4,8 +4,10 @@ description: Prepare guest requests in Headplane without provisioning network ac
 ---
 
 Guest management prepares administrative requests for future temporary access.
-Phase 1 stores drafts in Headplane only. It sends no email, creates no Headscale
-users or auth keys, and changes no ACLs, machines, or Headscale configuration.
+The phase-one foundation stores drafts in Headplane only. Creating a draft sends
+no email, creates no Headscale users or auth keys, and changes no ACLs, machines,
+or Headscale configuration. Optional [Guest invitations](/features/guest-invitations)
+add email delivery and verified administrative acceptance when configured.
 Saving a draft never grants VPN access or starts an access countdown.
 
 ## Manage guests
@@ -25,6 +27,8 @@ Select **Create draft**. Search by name or email, filter by status, or sort by
 creation or modification date. Select **Apply** to save search options in the
 address bar. Lists contain up to 25 requests per page. Select **View** or the
 guest name to open details, then **Edit draft** to change information.
+After issuance, use the invitation actions or create another draft; an issued
+request cannot be edited in place.
 
 Select **Revoke draft** and confirm to close a request permanently. Revoked
 requests remain visible for administrative history and cannot be edited or

@@ -17,6 +17,7 @@ export default [
   route("/oidc/callback", "routes/auth/oidc-callback.ts"),
   route("/oidc/start", "routes/auth/oidc-start.ts"),
   route("/link", "routes/auth/link.tsx"),
+  route("/invite", "routes/guests/accept.tsx"),
 
   // Accounts without dashboard access land here, outside the app layout
   index("routes/home.tsx"),

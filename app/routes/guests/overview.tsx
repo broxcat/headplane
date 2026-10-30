@@ -8,19 +8,20 @@ import Link from "~/components/link";
 import PageError from "~/components/page-error";
 import PageHeader from "~/components/page-header";
 import { Table, TableBody, TableCell, TableHeader } from "~/components/table";
-import { authContext, guestsContext } from "~/server/context";
+import { authContext, guestsContext, invitationsContext } from "~/server/context";
 import { Capabilities } from "~/server/web/roles";
 import { parseValues } from "~/utils/form";
 import { toastClientAction } from "~/utils/toast";
 
 import type { Route } from "./+types/overview";
-import { createGuestAction, guestData } from "./actions";
+import { createGuestAction, guestData, invitationData } from "./actions";
 import { guestDate } from "./format";
 import GuestDialog from "./guest-dialog";
 import { guestQuery } from "./schemas";
 
 export async function loader({ request, context }: Route.LoaderArgs) {
   await context.get(authContext).requireCapability(request, Capabilities.manage_guests);
+  invitationData(context.get(invitationsContext).expire());
   const parsed = parseValues(guestQuery, Object.fromEntries(new URL(request.url).searchParams));
   const query = parsed.ok
     ? parsed.data
@@ -45,7 +46,7 @@ export default function Page({ loaderData }: Route.ComponentProps) {
     <>
       <PageHeader
         title="Guests"
-        description="Prepare and manage guest requests. Drafts grant no VPN access and send no invitations."
+        description="Prepare guests and manage email invitations. Acceptance does not activate VPN access."
         actions={<GuestDialog />}
       />
       {queryError && (
@@ -80,6 +81,9 @@ export default function Page({ loaderData }: Route.ComponentProps) {
           >
             <option value="all">All statuses</option>
             <option value="draft">Draft</option>
+            <option value="pending">Pending</option>
+            <option value="accepted">Accepted</option>
+            <option value="expired">Expired</option>
             <option value="revoked">Revoked</option>
           </select>
         </div>
@@ -130,6 +134,8 @@ export default function Page({ loaderData }: Route.ComponentProps) {
                   "Status",
                   "Created",
                   "Planned expiry",
+                  "Invitation expires",
+                  "Last sent",
                   "Resources",
                   "Modified",
                   "Actions",
@@ -154,13 +160,28 @@ export default function Page({ loaderData }: Route.ComponentProps) {
                   <TableCell className="min-w-48 break-all">{guest.email}</TableCell>
                   <TableCell>
                     <Chip
-                      text={guest.status === "draft" ? "Draft" : "Revoked"}
-                      variant={guest.status === "revoked" ? "bad" : "neutral"}
+                      text={
+                        (guest.invitation_status ?? guest.status)[0].toUpperCase() +
+                        (guest.invitation_status ?? guest.status).slice(1)
+                      }
+                      variant={
+                        (guest.invitation_status ?? guest.status) === "revoked"
+                          ? "bad"
+                          : guest.invitation_status === "expired"
+                            ? "warn"
+                            : "neutral"
+                      }
                     />
                   </TableCell>
                   <TableCell className="whitespace-nowrap">{guestDate(guest.created_at)}</TableCell>
                   <TableCell className="whitespace-nowrap">
                     {guestDate(guest.requested_expires_at)}
+                  </TableCell>
+                  <TableCell className="whitespace-nowrap">
+                    {guestDate(guest.invitation_expires_at)}
+                  </TableCell>
+                  <TableCell className="whitespace-nowrap">
+                    {guestDate(guest.invitation_last_sent_at)}
                   </TableCell>
                   <TableCell>0</TableCell>
                   <TableCell className="whitespace-nowrap">{guestDate(guest.updated_at)}</TableCell>

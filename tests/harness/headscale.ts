@@ -54,7 +54,7 @@ export function headscaleConfig(overrides: Record<string, unknown> = {}) {
 
 // Nodes retry control over TLS on 443 after a reconnect, so a tailnet's
 // Headscale needs TLS. One self-signed pair is shared by every worker.
-async function certificate() {
+export async function harnessCertificate() {
   const pairDir = join(CERT_DIR, "pair");
   if (!existsSync(pairDir)) {
     await mkdir(CERT_DIR, { recursive: true });
@@ -128,7 +128,7 @@ export async function startHeadscale(options: {
   const configDir = await mkdtemp(join(tmpdir(), "hp-harness-headscale-"));
   const configPath = join(configDir, "config.yaml");
   const recordsPath = join(configDir, "extra-records.json");
-  const tls = options.tls ? await certificate() : undefined;
+  const tls = options.tls ? await harnessCertificate() : undefined;
   // Tailnets relay through Headscale's own DERP server rather than
   // Tailscale's, which browser clients reach over WebSockets.
   const listen = tls

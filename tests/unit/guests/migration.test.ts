@@ -32,7 +32,8 @@ test("the additive migration preserves existing users, sessions and host details
   const dir = await tempDir();
   const previousMigrations = join(dir, "migrations");
   const folders = (await readdir("drizzle")).sort();
-  for (const folder of folders.filter((folder) => !folder.endsWith("_guest_management"))) {
+  const foundation = folders.find((folder) => folder.endsWith("_guest_management"))!;
+  for (const folder of folders.filter((folder) => folder < foundation)) {
     await cp(join("drizzle", folder), join(previousMigrations, folder), { recursive: true });
   }
   const path = join(dir, "persist.db");

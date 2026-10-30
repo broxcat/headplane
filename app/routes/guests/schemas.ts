@@ -57,7 +57,10 @@ export const guestRevision = v.pipe(
 
 export const guestQuery = v.object({
   q: v.optional(v.pipe(v.string(), v.trim(), v.maxLength(254)), ""),
-  status: v.optional(v.picklist(["all", "draft", "revoked"]), "all"),
+  status: v.optional(
+    v.picklist(["all", "draft", "pending", "accepted", "expired", "revoked"]),
+    "all",
+  ),
   sort: v.optional(
     v.picklist(["created-desc", "created-asc", "updated-desc", "updated-asc"]),
     "created-desc",

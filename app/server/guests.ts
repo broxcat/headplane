@@ -1,4 +1,4 @@
-import { and, asc, count, desc, eq, or, sql } from "drizzle-orm";
+import { and, asc, count, desc, eq, getTableColumns, or, sql } from "drizzle-orm";
 import type { NodeSQLiteDatabase } from "drizzle-orm/node-sqlite";
 import { ulid } from "ulidx";
 import * as v from "valibot";
@@ -7,7 +7,7 @@ import { guestFields, type GuestQuery } from "~/routes/guests/schemas";
 import { parseValues, type FormErrors } from "~/utils/form";
 import log from "~/utils/log";
 
-import { guests, type Guest } from "./db/schema";
+import { guests, guestInvitations, type Guest } from "./db/schema";
 import { err, ok, type Result } from "./result";
 
 export interface GuestError {
@@ -105,6 +105,21 @@ export function createGuestService(db: NodeSQLiteDatabase) {
   function change(id: string, revision: number, input?: unknown): GuestResult<Guest> {
     const current = get(id);
     if (!current.ok) return current;
+    const invitation = database(() =>
+      ok(
+        db
+          .select({ id: guestInvitations.id })
+          .from(guestInvitations)
+          .where(eq(guestInvitations.guest_id, id))
+          .get(),
+      ),
+    );
+    if (!invitation.ok) return invitation;
+    if (invitation.value)
+      return err({
+        code: "conflict",
+        message: "This guest has an invitation. Use its invitation actions or create a new draft.",
+      });
     if (current.value.status !== "draft" || current.value.revision !== revision) {
       return err({
         code: "conflict",
@@ -140,7 +155,9 @@ export function createGuestService(db: NodeSQLiteDatabase) {
     return database(() => {
       const pattern = `%${query.q.replace(/[!%_]/g, "!$&")}%`;
       const where = and(
-        query.status === "all" ? undefined : eq(guests.status, query.status),
+        query.status === "all"
+          ? undefined
+          : sql`coalesce(${guestInvitations.status}, ${guests.status}) = ${query.status}`,
         query.q
           ? or(
               sql`${guests.email} LIKE ${pattern} ESCAPE '!'`,
@@ -148,14 +165,25 @@ export function createGuestService(db: NodeSQLiteDatabase) {
             )
           : undefined,
       );
-      const total = db.select({ total: count() }).from(guests).where(where).get()!.total;
+      const total = db
+        .select({ total: count() })
+        .from(guests)
+        .leftJoin(guestInvitations, eq(guestInvitations.guest_id, guests.id))
+        .where(where)
+        .get()!.total;
       const pages = Math.max(1, Math.ceil(total / GUEST_PAGE_SIZE));
       const page = Math.min(query.page, pages);
       const column = query.sort.startsWith("updated") ? guests.updated_at : guests.created_at;
       const order = query.sort.endsWith("asc") ? asc : desc;
       const rows = db
-        .select()
+        .select({
+          ...getTableColumns(guests),
+          invitation_status: guestInvitations.status,
+          invitation_expires_at: guestInvitations.expires_at,
+          invitation_last_sent_at: guestInvitations.last_sent_at,
+        })
         .from(guests)
+        .leftJoin(guestInvitations, eq(guestInvitations.guest_id, guests.id))
         .where(where)
         .orderBy(order(column), order(guests.id))
         .limit(GUEST_PAGE_SIZE)

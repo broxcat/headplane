@@ -106,8 +106,15 @@ export async function loadConfigEnv() {
       continue;
     }
 
-    const parsedValue = parseEnvValue(value);
     const configKey = key.slice("HEADPLANE_".length).toLowerCase();
+    // Credentials such as "12345678" or "true" are strings, not configuration
+    // numbers or booleans. Preserve them exactly as supplied by the environment.
+    const parsedValue = [
+      "guest_invitations__smtp__username",
+      "guest_invitations__smtp__password",
+    ].includes(configKey)
+      ? value
+      : parseEnvValue(value);
     deepSet(rawConfig, configKey.split("__"), parsedValue);
   }
 
