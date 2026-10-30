@@ -47,6 +47,7 @@ jobs:
           HEADPLANE_DOCS_DATE: ${{ steps.commit.outputs.date }}
 
       - name: Deploy to Cloudflare Pages
+        if: github.repository == 'tale/headplane'
         uses: cloudflare/wrangler-action@v3
         with:
           apiToken: ${{ secrets.CF_API_TOKEN }}
