@@ -1,0 +1,1473 @@
+{
+  "version": "7",
+  "dialect": "sqlite",
+  "id": "1be75b33-6b82-4bdd-997c-6f07adb3732f",
+  "prevIds": ["5388203f-ce29-46b5-93de-b90e12bc692e"],
+  "ddl": [
+    {
+      "name": "auth_sessions",
+      "entityType": "tables"
+    },
+    {
+      "name": "guest_invitation_events",
+      "entityType": "tables"
+    },
+    {
+      "name": "guest_invitation_limits",
+      "entityType": "tables"
+    },
+    {
+      "name": "guest_invitation_sessions",
+      "entityType": "tables"
+    },
+    {
+      "name": "guest_invitations",
+      "entityType": "tables"
+    },
+    {
+      "name": "guest_resources",
+      "entityType": "tables"
+    },
+    {
+      "name": "guests",
+      "entityType": "tables"
+    },
+    {
+      "name": "host_info",
+      "entityType": "tables"
+    },
+    {
+      "name": "local_admin_users",
+      "entityType": "tables"
+    },
+    {
+      "name": "local_auth_events",
+      "entityType": "tables"
+    },
+    {
+      "name": "local_auth_limits",
+      "entityType": "tables"
+    },
+    {
+      "name": "users",
+      "entityType": "tables"
+    },
+    {
+      "type": "text",
+      "notNull": false,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "id",
+      "entityType": "columns",
+      "table": "auth_sessions"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "kind",
+      "entityType": "columns",
+      "table": "auth_sessions"
+    },
+    {
+      "type": "text",
+      "notNull": false,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "user_id",
+      "entityType": "columns",
+      "table": "auth_sessions"
+    },
+    {
+      "type": "text",
+      "notNull": false,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "api_key_hash",
+      "entityType": "columns",
+      "table": "auth_sessions"
+    },
+    {
+      "type": "text",
+      "notNull": false,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "api_key_display",
+      "entityType": "columns",
+      "table": "auth_sessions"
+    },
+    {
+      "type": "text",
+      "notNull": false,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "oidc_id_token",
+      "entityType": "columns",
+      "table": "auth_sessions"
+    },
+    {
+      "type": "integer",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "expires_at",
+      "entityType": "columns",
+      "table": "auth_sessions"
+    },
+    {
+      "type": "integer",
+      "notNull": false,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "created_at",
+      "entityType": "columns",
+      "table": "auth_sessions"
+    },
+    {
+      "type": "text",
+      "notNull": false,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "id",
+      "entityType": "columns",
+      "table": "guest_invitation_events"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "invitation_id",
+      "entityType": "columns",
+      "table": "guest_invitation_events"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "kind",
+      "entityType": "columns",
+      "table": "guest_invitation_events"
+    },
+    {
+      "type": "integer",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "created_at",
+      "entityType": "columns",
+      "table": "guest_invitation_events"
+    },
+    {
+      "type": "text",
+      "notNull": false,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "actor_id",
+      "entityType": "columns",
+      "table": "guest_invitation_events"
+    },
+    {
+      "type": "text",
+      "notNull": false,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "key_hash",
+      "entityType": "columns",
+      "table": "guest_invitation_limits"
+    },
+    {
+      "type": "integer",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "window_start",
+      "entityType": "columns",
+      "table": "guest_invitation_limits"
+    },
+    {
+      "type": "integer",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "hits",
+      "entityType": "columns",
+      "table": "guest_invitation_limits"
+    },
+    {
+      "type": "text",
+      "notNull": false,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "id_hash",
+      "entityType": "columns",
+      "table": "guest_invitation_sessions"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "invitation_id",
+      "entityType": "columns",
+      "table": "guest_invitation_sessions"
+    },
+    {
+      "type": "integer",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "token_version",
+      "entityType": "columns",
+      "table": "guest_invitation_sessions"
+    },
+    {
+      "type": "integer",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "expires_at",
+      "entityType": "columns",
+      "table": "guest_invitation_sessions"
+    },
+    {
+      "type": "text",
+      "notNull": false,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "code_hash",
+      "entityType": "columns",
+      "table": "guest_invitation_sessions"
+    },
+    {
+      "type": "integer",
+      "notNull": false,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "code_expires_at",
+      "entityType": "columns",
+      "table": "guest_invitation_sessions"
+    },
+    {
+      "type": "integer",
+      "notNull": true,
+      "autoincrement": false,
+      "default": "false",
+      "generated": null,
+      "name": "code_ready",
+      "entityType": "columns",
+      "table": "guest_invitation_sessions"
+    },
+    {
+      "type": "integer",
+      "notNull": true,
+      "autoincrement": false,
+      "default": "0",
+      "generated": null,
+      "name": "attempts",
+      "entityType": "columns",
+      "table": "guest_invitation_sessions"
+    },
+    {
+      "type": "text",
+      "notNull": false,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "id",
+      "entityType": "columns",
+      "table": "guest_invitations"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "guest_id",
+      "entityType": "columns",
+      "table": "guest_invitations"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "email",
+      "entityType": "columns",
+      "table": "guest_invitations"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": "'draft'",
+      "generated": null,
+      "name": "status",
+      "entityType": "columns",
+      "table": "guest_invitations"
+    },
+    {
+      "type": "text",
+      "notNull": false,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "token_hash",
+      "entityType": "columns",
+      "table": "guest_invitations"
+    },
+    {
+      "type": "integer",
+      "notNull": true,
+      "autoincrement": false,
+      "default": "0",
+      "generated": null,
+      "name": "token_version",
+      "entityType": "columns",
+      "table": "guest_invitations"
+    },
+    {
+      "type": "integer",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "created_at",
+      "entityType": "columns",
+      "table": "guest_invitations"
+    },
+    {
+      "type": "integer",
+      "notNull": false,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "issued_at",
+      "entityType": "columns",
+      "table": "guest_invitations"
+    },
+    {
+      "type": "integer",
+      "notNull": false,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "expires_at",
+      "entityType": "columns",
+      "table": "guest_invitations"
+    },
+    {
+      "type": "integer",
+      "notNull": false,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "accepted_at",
+      "entityType": "columns",
+      "table": "guest_invitations"
+    },
+    {
+      "type": "integer",
+      "notNull": false,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "revoked_at",
+      "entityType": "columns",
+      "table": "guest_invitations"
+    },
+    {
+      "type": "integer",
+      "notNull": true,
+      "autoincrement": false,
+      "default": "0",
+      "generated": null,
+      "name": "send_count",
+      "entityType": "columns",
+      "table": "guest_invitations"
+    },
+    {
+      "type": "integer",
+      "notNull": false,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "last_sent_at",
+      "entityType": "columns",
+      "table": "guest_invitations"
+    },
+    {
+      "type": "integer",
+      "notNull": false,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "verification_sent_at",
+      "entityType": "columns",
+      "table": "guest_invitations"
+    },
+    {
+      "type": "text",
+      "notNull": false,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "created_by",
+      "entityType": "columns",
+      "table": "guest_invitations"
+    },
+    {
+      "type": "integer",
+      "notNull": true,
+      "autoincrement": false,
+      "default": "1",
+      "generated": null,
+      "name": "revision",
+      "entityType": "columns",
+      "table": "guest_invitations"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": "'idle'",
+      "generated": null,
+      "name": "delivery_state",
+      "entityType": "columns",
+      "table": "guest_invitations"
+    },
+    {
+      "type": "text",
+      "notNull": false,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "delivery_id",
+      "entityType": "columns",
+      "table": "guest_invitations"
+    },
+    {
+      "type": "integer",
+      "notNull": false,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "delivery_started_at",
+      "entityType": "columns",
+      "table": "guest_invitations"
+    },
+    {
+      "type": "text",
+      "notNull": false,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "id",
+      "entityType": "columns",
+      "table": "guest_resources"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "guest_id",
+      "entityType": "columns",
+      "table": "guest_resources"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "kind",
+      "entityType": "columns",
+      "table": "guest_resources"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "node_id",
+      "entityType": "columns",
+      "table": "guest_resources"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "address",
+      "entityType": "columns",
+      "table": "guest_resources"
+    },
+    {
+      "type": "text",
+      "notNull": false,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "route",
+      "entityType": "columns",
+      "table": "guest_resources"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "protocol",
+      "entityType": "columns",
+      "table": "guest_resources"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "ports",
+      "entityType": "columns",
+      "table": "guest_resources"
+    },
+    {
+      "type": "integer",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "created_at",
+      "entityType": "columns",
+      "table": "guest_resources"
+    },
+    {
+      "type": "integer",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "updated_at",
+      "entityType": "columns",
+      "table": "guest_resources"
+    },
+    {
+      "type": "integer",
+      "notNull": true,
+      "autoincrement": false,
+      "default": "1",
+      "generated": null,
+      "name": "revision",
+      "entityType": "columns",
+      "table": "guest_resources"
+    },
+    {
+      "type": "text",
+      "notNull": false,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "id",
+      "entityType": "columns",
+      "table": "guests"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "email",
+      "entityType": "columns",
+      "table": "guests"
+    },
+    {
+      "type": "text",
+      "notNull": false,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "display_name",
+      "entityType": "columns",
+      "table": "guests"
+    },
+    {
+      "type": "text",
+      "notNull": false,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "notes",
+      "entityType": "columns",
+      "table": "guests"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": "'draft'",
+      "generated": null,
+      "name": "status",
+      "entityType": "columns",
+      "table": "guests"
+    },
+    {
+      "type": "integer",
+      "notNull": false,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "requested_duration_seconds",
+      "entityType": "columns",
+      "table": "guests"
+    },
+    {
+      "type": "integer",
+      "notNull": false,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "requested_expires_at",
+      "entityType": "columns",
+      "table": "guests"
+    },
+    {
+      "type": "integer",
+      "notNull": false,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "activated_at",
+      "entityType": "columns",
+      "table": "guests"
+    },
+    {
+      "type": "integer",
+      "notNull": false,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "expires_at",
+      "entityType": "columns",
+      "table": "guests"
+    },
+    {
+      "type": "integer",
+      "notNull": false,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "revoked_at",
+      "entityType": "columns",
+      "table": "guests"
+    },
+    {
+      "type": "integer",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "created_at",
+      "entityType": "columns",
+      "table": "guests"
+    },
+    {
+      "type": "integer",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "updated_at",
+      "entityType": "columns",
+      "table": "guests"
+    },
+    {
+      "type": "text",
+      "notNull": false,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "created_by",
+      "entityType": "columns",
+      "table": "guests"
+    },
+    {
+      "type": "integer",
+      "notNull": true,
+      "autoincrement": false,
+      "default": "1",
+      "generated": null,
+      "name": "revision",
+      "entityType": "columns",
+      "table": "guests"
+    },
+    {
+      "type": "text",
+      "notNull": false,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "host_id",
+      "entityType": "columns",
+      "table": "host_info"
+    },
+    {
+      "type": "text",
+      "notNull": false,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "payload",
+      "entityType": "columns",
+      "table": "host_info"
+    },
+    {
+      "type": "integer",
+      "notNull": false,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "updated_at",
+      "entityType": "columns",
+      "table": "host_info"
+    },
+    {
+      "type": "text",
+      "notNull": false,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "user_id",
+      "entityType": "columns",
+      "table": "local_admin_users"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "username",
+      "entityType": "columns",
+      "table": "local_admin_users"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "normalized_username",
+      "entityType": "columns",
+      "table": "local_admin_users"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "password_hash",
+      "entityType": "columns",
+      "table": "local_admin_users"
+    },
+    {
+      "type": "integer",
+      "notNull": true,
+      "autoincrement": false,
+      "default": "true",
+      "generated": null,
+      "name": "enabled",
+      "entityType": "columns",
+      "table": "local_admin_users"
+    },
+    {
+      "type": "integer",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "password_changed_at",
+      "entityType": "columns",
+      "table": "local_admin_users"
+    },
+    {
+      "type": "integer",
+      "notNull": true,
+      "autoincrement": false,
+      "default": "1",
+      "generated": null,
+      "name": "revision",
+      "entityType": "columns",
+      "table": "local_admin_users"
+    },
+    {
+      "type": "text",
+      "notNull": false,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "id",
+      "entityType": "columns",
+      "table": "local_auth_events"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "kind",
+      "entityType": "columns",
+      "table": "local_auth_events"
+    },
+    {
+      "type": "text",
+      "notNull": false,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "user_id",
+      "entityType": "columns",
+      "table": "local_auth_events"
+    },
+    {
+      "type": "integer",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "created_at",
+      "entityType": "columns",
+      "table": "local_auth_events"
+    },
+    {
+      "type": "text",
+      "notNull": false,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "key",
+      "entityType": "columns",
+      "table": "local_auth_limits"
+    },
+    {
+      "type": "integer",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "window_start",
+      "entityType": "columns",
+      "table": "local_auth_limits"
+    },
+    {
+      "type": "integer",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "hits",
+      "entityType": "columns",
+      "table": "local_auth_limits"
+    },
+    {
+      "type": "integer",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "locked_until",
+      "entityType": "columns",
+      "table": "local_auth_limits"
+    },
+    {
+      "type": "text",
+      "notNull": false,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "id",
+      "entityType": "columns",
+      "table": "users"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "sub",
+      "entityType": "columns",
+      "table": "users"
+    },
+    {
+      "type": "text",
+      "notNull": false,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "name",
+      "entityType": "columns",
+      "table": "users"
+    },
+    {
+      "type": "text",
+      "notNull": false,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "email",
+      "entityType": "columns",
+      "table": "users"
+    },
+    {
+      "type": "text",
+      "notNull": false,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "picture",
+      "entityType": "columns",
+      "table": "users"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": "'member'",
+      "generated": null,
+      "name": "role",
+      "entityType": "columns",
+      "table": "users"
+    },
+    {
+      "type": "text",
+      "notNull": false,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "headscale_user_id",
+      "entityType": "columns",
+      "table": "users"
+    },
+    {
+      "type": "integer",
+      "notNull": false,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "created_at",
+      "entityType": "columns",
+      "table": "users"
+    },
+    {
+      "type": "integer",
+      "notNull": false,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "updated_at",
+      "entityType": "columns",
+      "table": "users"
+    },
+    {
+      "type": "integer",
+      "notNull": false,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "last_login_at",
+      "entityType": "columns",
+      "table": "users"
+    },
+    {
+      "type": "integer",
+      "notNull": true,
+      "autoincrement": false,
+      "default": "0",
+      "generated": null,
+      "name": "caps",
+      "entityType": "columns",
+      "table": "users"
+    },
+    {
+      "columns": ["invitation_id"],
+      "tableTo": "guest_invitations",
+      "columnsTo": ["id"],
+      "onUpdate": "NO ACTION",
+      "onDelete": "NO ACTION",
+      "nameExplicit": false,
+      "name": "fk_guest_invitation_events_invitation_id_guest_invitations_id_fk",
+      "entityType": "fks",
+      "table": "guest_invitation_events"
+    },
+    {
+      "columns": ["invitation_id"],
+      "tableTo": "guest_invitations",
+      "columnsTo": ["id"],
+      "onUpdate": "NO ACTION",
+      "onDelete": "NO ACTION",
+      "nameExplicit": false,
+      "name": "fk_guest_invitation_sessions_invitation_id_guest_invitations_id_fk",
+      "entityType": "fks",
+      "table": "guest_invitation_sessions"
+    },
+    {
+      "columns": ["guest_id"],
+      "tableTo": "guests",
+      "columnsTo": ["id"],
+      "onUpdate": "NO ACTION",
+      "onDelete": "NO ACTION",
+      "nameExplicit": false,
+      "name": "fk_guest_invitations_guest_id_guests_id_fk",
+      "entityType": "fks",
+      "table": "guest_invitations"
+    },
+    {
+      "columns": ["guest_id"],
+      "tableTo": "guests",
+      "columnsTo": ["id"],
+      "onUpdate": "NO ACTION",
+      "onDelete": "NO ACTION",
+      "nameExplicit": false,
+      "name": "fk_guest_resources_guest_id_guests_id_fk",
+      "entityType": "fks",
+      "table": "guest_resources"
+    },
+    {
+      "columns": ["user_id"],
+      "tableTo": "users",
+      "columnsTo": ["id"],
+      "onUpdate": "NO ACTION",
+      "onDelete": "NO ACTION",
+      "nameExplicit": false,
+      "name": "fk_local_admin_users_user_id_users_id_fk",
+      "entityType": "fks",
+      "table": "local_admin_users"
+    },
+    {
+      "columns": ["id"],
+      "nameExplicit": false,
+      "name": "auth_sessions_pk",
+      "table": "auth_sessions",
+      "entityType": "pks"
+    },
+    {
+      "columns": ["id"],
+      "nameExplicit": false,
+      "name": "guest_invitation_events_pk",
+      "table": "guest_invitation_events",
+      "entityType": "pks"
+    },
+    {
+      "columns": ["key_hash"],
+      "nameExplicit": false,
+      "name": "guest_invitation_limits_pk",
+      "table": "guest_invitation_limits",
+      "entityType": "pks"
+    },
+    {
+      "columns": ["id_hash"],
+      "nameExplicit": false,
+      "name": "guest_invitation_sessions_pk",
+      "table": "guest_invitation_sessions",
+      "entityType": "pks"
+    },
+    {
+      "columns": ["id"],
+      "nameExplicit": false,
+      "name": "guest_invitations_pk",
+      "table": "guest_invitations",
+      "entityType": "pks"
+    },
+    {
+      "columns": ["id"],
+      "nameExplicit": false,
+      "name": "guest_resources_pk",
+      "table": "guest_resources",
+      "entityType": "pks"
+    },
+    {
+      "columns": ["id"],
+      "nameExplicit": false,
+      "name": "guests_pk",
+      "table": "guests",
+      "entityType": "pks"
+    },
+    {
+      "columns": ["host_id"],
+      "nameExplicit": false,
+      "name": "host_info_pk",
+      "table": "host_info",
+      "entityType": "pks"
+    },
+    {
+      "columns": ["user_id"],
+      "nameExplicit": false,
+      "name": "local_admin_users_pk",
+      "table": "local_admin_users",
+      "entityType": "pks"
+    },
+    {
+      "columns": ["id"],
+      "nameExplicit": false,
+      "name": "local_auth_events_pk",
+      "table": "local_auth_events",
+      "entityType": "pks"
+    },
+    {
+      "columns": ["key"],
+      "nameExplicit": false,
+      "name": "local_auth_limits_pk",
+      "table": "local_auth_limits",
+      "entityType": "pks"
+    },
+    {
+      "columns": ["id"],
+      "nameExplicit": false,
+      "name": "users_pk",
+      "table": "users",
+      "entityType": "pks"
+    },
+    {
+      "columns": [
+        {
+          "value": "invitation_id",
+          "isExpression": false
+        },
+        {
+          "value": "created_at",
+          "isExpression": false
+        },
+        {
+          "value": "id",
+          "isExpression": false
+        }
+      ],
+      "isUnique": false,
+      "where": null,
+      "origin": "manual",
+      "name": "guest_invitation_events_invitation_idx",
+      "entityType": "indexes",
+      "table": "guest_invitation_events"
+    },
+    {
+      "columns": [
+        {
+          "value": "expires_at",
+          "isExpression": false
+        }
+      ],
+      "isUnique": false,
+      "where": null,
+      "origin": "manual",
+      "name": "guest_invitation_sessions_expiry_idx",
+      "entityType": "indexes",
+      "table": "guest_invitation_sessions"
+    },
+    {
+      "columns": [
+        {
+          "value": "invitation_id",
+          "isExpression": false
+        }
+      ],
+      "isUnique": false,
+      "where": null,
+      "origin": "manual",
+      "name": "guest_invitation_sessions_invitation_idx",
+      "entityType": "indexes",
+      "table": "guest_invitation_sessions"
+    },
+    {
+      "columns": [
+        {
+          "value": "status",
+          "isExpression": false
+        },
+        {
+          "value": "expires_at",
+          "isExpression": false
+        }
+      ],
+      "isUnique": false,
+      "where": null,
+      "origin": "manual",
+      "name": "guest_invitations_expiry_idx",
+      "entityType": "indexes",
+      "table": "guest_invitations"
+    },
+    {
+      "columns": [
+        {
+          "value": "guest_id",
+          "isExpression": false
+        }
+      ],
+      "isUnique": false,
+      "where": null,
+      "origin": "manual",
+      "name": "guest_resources_guest_idx",
+      "entityType": "indexes",
+      "table": "guest_resources"
+    },
+    {
+      "columns": [
+        {
+          "value": "guest_id",
+          "isExpression": false
+        },
+        {
+          "value": "address",
+          "isExpression": false
+        },
+        {
+          "value": "protocol",
+          "isExpression": false
+        }
+      ],
+      "isUnique": true,
+      "where": null,
+      "origin": "manual",
+      "name": "guest_resources_target_idx",
+      "entityType": "indexes",
+      "table": "guest_resources"
+    },
+    {
+      "columns": [
+        {
+          "value": "email",
+          "isExpression": false
+        }
+      ],
+      "isUnique": false,
+      "where": null,
+      "origin": "manual",
+      "name": "guests_email_idx",
+      "entityType": "indexes",
+      "table": "guests"
+    },
+    {
+      "columns": [
+        {
+          "value": "created_at",
+          "isExpression": false
+        },
+        {
+          "value": "id",
+          "isExpression": false
+        }
+      ],
+      "isUnique": false,
+      "where": null,
+      "origin": "manual",
+      "name": "guests_created_idx",
+      "entityType": "indexes",
+      "table": "guests"
+    },
+    {
+      "columns": [
+        {
+          "value": "status",
+          "isExpression": false
+        },
+        {
+          "value": "created_at",
+          "isExpression": false
+        },
+        {
+          "value": "id",
+          "isExpression": false
+        }
+      ],
+      "isUnique": false,
+      "where": null,
+      "origin": "manual",
+      "name": "guests_status_created_idx",
+      "entityType": "indexes",
+      "table": "guests"
+    },
+    {
+      "columns": ["guest_id"],
+      "nameExplicit": false,
+      "name": "guest_invitations_guest_id_unique",
+      "entityType": "uniques",
+      "table": "guest_invitations"
+    },
+    {
+      "columns": ["token_hash"],
+      "nameExplicit": false,
+      "name": "guest_invitations_token_hash_unique",
+      "entityType": "uniques",
+      "table": "guest_invitations"
+    },
+    {
+      "columns": ["normalized_username"],
+      "nameExplicit": false,
+      "name": "local_admin_users_normalized_username_unique",
+      "entityType": "uniques",
+      "table": "local_admin_users"
+    },
+    {
+      "columns": ["sub"],
+      "nameExplicit": false,
+      "name": "users_sub_unique",
+      "entityType": "uniques",
+      "table": "users"
+    },
+    {
+      "columns": ["headscale_user_id"],
+      "nameExplicit": false,
+      "name": "users_headscale_user_id_unique",
+      "entityType": "uniques",
+      "table": "users"
+    },
+    {
+      "value": "\"code_ready\" = 0 OR (\"code_hash\" IS NOT NULL AND \"code_expires_at\" IS NOT NULL)",
+      "name": "guest_invitation_code_ready",
+      "entityType": "checks",
+      "table": "guest_invitation_sessions"
+    },
+    {
+      "value": "\"status\" IN ('draft','pending','accepted','expired','revoked')",
+      "name": "guest_invitation_status",
+      "entityType": "checks",
+      "table": "guest_invitations"
+    },
+    {
+      "value": "\"delivery_state\" IN ('idle','sending','sent','failed')",
+      "name": "guest_invitation_delivery",
+      "entityType": "checks",
+      "table": "guest_invitations"
+    },
+    {
+      "value": "\"status\" IN ('draft','pending') OR \"token_hash\" IS NULL",
+      "name": "guest_invitation_terminal_token",
+      "entityType": "checks",
+      "table": "guest_invitations"
+    },
+    {
+      "value": "\"status\" != 'pending' OR (\"issued_at\" IS NOT NULL AND \"expires_at\" IS NOT NULL AND \"expires_at\" > \"issued_at\")",
+      "name": "guest_invitation_pending_dates",
+      "entityType": "checks",
+      "table": "guest_invitations"
+    },
+    {
+      "value": "(\"status\" = 'accepted' AND \"accepted_at\" IS NOT NULL) OR (\"status\" != 'accepted' AND \"accepted_at\" IS NULL)",
+      "name": "guest_invitation_acceptance",
+      "entityType": "checks",
+      "table": "guest_invitations"
+    },
+    {
+      "value": "(\"status\" = 'revoked' AND \"revoked_at\" IS NOT NULL) OR (\"status\" != 'revoked' AND \"revoked_at\" IS NULL)",
+      "name": "guest_invitation_revocation",
+      "entityType": "checks",
+      "table": "guest_invitations"
+    },
+    {
+      "value": "\"send_count\" >= 0 AND \"token_version\" >= 0 AND \"revision\" >= 1",
+      "name": "guest_invitation_counters",
+      "entityType": "checks",
+      "table": "guest_invitations"
+    },
+    {
+      "value": "\"kind\" IN ('node','lan')",
+      "name": "guest_resources_kind",
+      "entityType": "checks",
+      "table": "guest_resources"
+    },
+    {
+      "value": "\"protocol\" IN ('tcp','udp')",
+      "name": "guest_resources_protocol",
+      "entityType": "checks",
+      "table": "guest_resources"
+    },
+    {
+      "value": "(\"kind\" = 'node' AND \"route\" IS NULL) OR (\"kind\" = 'lan' AND \"route\" IS NOT NULL)",
+      "name": "guest_resources_route",
+      "entityType": "checks",
+      "table": "guest_resources"
+    },
+    {
+      "value": "length(\"ports\") BETWEEN 1 AND 512 AND \"ports\" NOT GLOB '*[^0-9,-]*'",
+      "name": "guest_resources_ports",
+      "entityType": "checks",
+      "table": "guest_resources"
+    },
+    {
+      "value": "\"revision\" >= 1",
+      "name": "guest_resources_revision",
+      "entityType": "checks",
+      "table": "guest_resources"
+    },
+    {
+      "value": "\"status\" IN ('draft', 'revoked')",
+      "name": "guests_phase_one_status",
+      "entityType": "checks",
+      "table": "guests"
+    },
+    {
+      "value": "\"activated_at\" IS NULL AND \"expires_at\" IS NULL",
+      "name": "guests_no_activation",
+      "entityType": "checks",
+      "table": "guests"
+    },
+    {
+      "value": "(\"requested_duration_seconds\" IS NOT NULL AND \"requested_duration_seconds\" IN (43200, 86400, 172800, 604800)) OR (\"requested_duration_seconds\" IS NULL AND \"requested_expires_at\" IS NOT NULL)",
+      "name": "guests_requested_duration",
+      "entityType": "checks",
+      "table": "guests"
+    },
+    {
+      "value": "(\"status\" = 'draft' AND \"revoked_at\" IS NULL) OR (\"status\" = 'revoked' AND \"revoked_at\" IS NOT NULL)",
+      "name": "guests_revocation",
+      "entityType": "checks",
+      "table": "guests"
+    },
+    {
+      "value": "\"enabled\" IN (0, 1)",
+      "name": "local_admin_enabled",
+      "entityType": "checks",
+      "table": "local_admin_users"
+    },
+    {
+      "value": "\"revision\" >= 1",
+      "name": "local_admin_revision",
+      "entityType": "checks",
+      "table": "local_admin_users"
+    }
+  ],
+  "renames": []
+}

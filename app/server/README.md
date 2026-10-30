@@ -9,7 +9,8 @@ service follows are in [`ARCHITECTURE.md`](./ARCHITECTURE.md).
 ```
 app/server/
 ├── app.ts              ← The Headplane application (load context, RR listener)
-├── main.ts             ← Production bootstrap (binds an http(s) server)
+├── main.ts             ← Production entry: server or admin maintenance
+├── start-server.ts     ← HTTP(S) server bootstrap
 ├── context.ts          ← createAppContext() — assembles the RouterContextProvider data
 ├── result.ts           ← Result<T, E> helper used across the server modules
 │
@@ -47,8 +48,11 @@ Consumed by:
 The SSR build input. Rollup bundles this file into
 `build/server/index.js`. It:
 
-1. imports the listener + config from [`app.ts`](./app.ts)
-2. wraps the listener with `composeListener` from
+1. dispatches `admin` commands to [`web/admin-cli.ts`](./web/admin-cli.ts)
+   before importing the application, allowing SQLite-only recovery without
+   Headscale or an HTTP listener
+2. otherwise loads [`start-server.ts`](./start-server.ts), which imports the
+   listener and config from [`app.ts`](./app.ts), and wraps the listener with `composeListener` from
    [`runtime/http.ts`](../../runtime/http.ts) — adds `/admin → /admin/`
    redirect and serves `build/client/` as static assets with immutable
    caching for the `assets/` subdirectory
@@ -67,7 +71,7 @@ process:
 - the SQLite client (`db`)
 - the Headscale REST interface (`headscale`)
 - the optional Headplane agent manager (`agents`)
-- the auth service (`auth`)
+- the auth service (`auth`) and local credential service (`localAuth`)
 - the optional OIDC service (`oidc`)
 - the live store (`hsLive`)
 - the (best-effort) parsed Headscale config (`hs`)
