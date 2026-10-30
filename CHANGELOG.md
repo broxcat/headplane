@@ -1,6 +1,14 @@
 # Next
 
+## Changes
+
+# 0.8.1-guest (October 30, 2026)
+
+> First pre-release of the broxcat Guest fork, based on Headplane 0.8.1. This is not an upstream release. Guest invitations remain administrative: no Guest ACL or VPN access is provisioned, and VPN revocation is not implemented. Real delivery requires SMTP configuration.
+
 ## Upgrading
+
+- Verify the fork’s Linux AMD64 archive against SHA256SUMS and retain Node.js 24, persistent SQLite/configuration and agent state when upgrading. Follow release/INSTALL.md; the archive never resets or replaces an existing database.
 
 - Back up the Headplane SQLite database before upgrading guest management. The 12-hour access option requires a transactional rebuild of the guest table that preserves existing records and invitation references. Retain the broader constraint when rolling back the application.
 
@@ -11,6 +19,8 @@
 - Builds no longer read `__INTERNAL_PREFIX`. If a build used it to serve Headplane somewhere other than `/admin`, set `server.base_path` to that path instead.
 
 ## Changes
+
+- The broxcat fork provides v0.8.1-guest as its first documented Guest pre-release, with a versioned Linux AMD64 archive, dependency notices, checksums and a tag-gated publication workflow. No deployment or VPN provisioning is performed.
 
 - Guest drafts now use a single access-duration choice: 12 hours, 48 hours, 7 days or a custom date in the browser’s time zone. Invitation validity, future VPN access and audit retention are shown separately. Guest emails include the access intention, and admins can check SMTP connectivity from Settings without sending a message. No VPN access is provisioned.
 

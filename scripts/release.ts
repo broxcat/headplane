@@ -40,6 +40,8 @@ function readSections(text: string): Section[] {
 }
 
 function cut(version: string) {
+  if (version.includes("-guest"))
+    die("Guest tags require the reviewed main-branch procedure in release/MAINTAINING.md");
   if (!SEMVER.test(version)) die(`\`${version}\` is not a version`);
 
   const tag = `v${version}`;
