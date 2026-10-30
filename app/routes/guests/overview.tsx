@@ -18,6 +18,7 @@ import type { Route } from "./+types/overview";
 import { createGuestAction, guestData, invitationData } from "./actions";
 import { guestDate } from "./format";
 import GuestDialog from "./guest-dialog";
+import { loadResourceCatalog } from "./resources.server";
 import { guestQuery } from "./schemas";
 
 export async function loader({ request, context }: Route.LoaderArgs) {
@@ -29,6 +30,7 @@ export async function loader({ request, context }: Route.LoaderArgs) {
     : { q: "", status: "all" as const, sort: "created-desc" as const, page: 1 };
   return {
     ...guestData(context.get(guestsContext).list(query)),
+    catalog: await loadResourceCatalog(request, context),
     query,
     queryError: parsed.ok ? undefined : "Invalid search options. Showing all guests.",
   };
@@ -38,7 +40,7 @@ export const action = createGuestAction;
 export const clientAction = toastClientAction;
 
 export default function Page({ loaderData }: Route.ComponentProps) {
-  const { rows, total, page, pages, query, queryError } = loaderData;
+  const { rows, total, page, pages, query, queryError, catalog } = loaderData;
   const navigation = useNavigation();
   const pending = navigation.state !== "idle";
   const pageLink = (next: number) => `?${new URLSearchParams({ ...query, page: String(next) })}`;
@@ -53,7 +55,7 @@ export default function Page({ loaderData }: Route.ComponentProps) {
             <Link styled to="/settings/guest-email">
               Guest email settings
             </Link>
-            <GuestDialog />
+            <GuestDialog catalog={catalog} />
           </>
         }
       />
@@ -193,7 +195,7 @@ export default function Page({ loaderData }: Route.ComponentProps) {
                   <TableCell className="whitespace-nowrap">
                     {guestDate(guest.invitation_last_sent_at)}
                   </TableCell>
-                  <TableCell>0</TableCell>
+                  <TableCell>{guest.resource_count}</TableCell>
                   <TableCell className="whitespace-nowrap">{guestDate(guest.updated_at)}</TableCell>
                   <TableCell>
                     <Link to={`/guests/${guest.id}`} className="focus-ring text-accent rounded-sm">

@@ -306,7 +306,8 @@ On a later upgrade, phase-one revocations are reconciled before a link is used.
 
 ## Future phases
 
-OIDC identity binding, resource selection, Headscale account provisioning,
+[Resource selection and read-only ACL preview](/features/guest-resources) are available
+as administrative intentions. OIDC identity binding, Headscale account provisioning,
 network grants, effective access expiry and device revocation remain separate
 work. Invitation acceptance is only an audited prerequisite for those workflows.
 No Headscale client or agent dependency is passed to the invitation service.

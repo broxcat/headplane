@@ -240,24 +240,16 @@ IT administrator and verify that direct guest URLs and submissions are refused.
 
 ## Resource and Headscale extensions
 
-Resource selection is deferred. Every request currently displays zero associated
-resources; no selected resource is presented as reachable. A later phase should
-audit node identity, address changes, ACL/grant support across Headscale versions,
-and how generated rules coexist with operator-owned policy before adding storage.
+Phase 3 adds [resource intentions and read-only ACL preview](/features/guest-resources).
+Select current Headscale machines or explicitly declare private LAN services behind
+announced and approved subnet routes. Ports and protocols are explicit; no network
+access is granted. Deleted machines, changed addresses and permissive policy rules
+are reported without silently rewriting any Headscale state.
 
-The proposed model is a separate request-resource relation with a stable
-Headscale machine ID, an optional descriptive alias or destination address,
-explicit TCP/UDP protocol and validated port ranges, requested validity bounds,
-and a provisioning state such as unprovisioned, provisioning, provisioned, failed,
-or revoked. Requested selectors must remain separate from effective provisioned
-rules and their audit records. A machine name or IP alone is insufficient as
-identity, and selecting a row must never grant access implicitly.
-
-Future invitation delivery, activation, effective expiration, identity binding,
-and ACL provisioning need separate services and explicit success/failure
-transitions. The reserved timestamps and statuses provide an extension point;
-they are not an implementation of those features. No scheduler or cleanup
-process is included in phase 1.
+Network identity binding, activation, effective expiration and verified ACL
+provisioning remain future work. Resource rows represent requested permissions,
+not effective grants. No preview guarantees isolation without a proven identity
+and complete policy evaluation.
 
 ## Future network revocation contract
 

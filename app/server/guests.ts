@@ -6,9 +6,10 @@ import * as v from "valibot";
 import { guestFields, type GuestQuery } from "~/routes/guests/schemas";
 import { parseValues, type FormErrors } from "~/utils/form";
 import { validateAccessDate } from "~/utils/guest-access";
+import type { ResourceInput } from "~/utils/guest-resources";
 import log from "~/utils/log";
 
-import { guests, guestInvitations, type Guest } from "./db/schema";
+import { guests, guestInvitations, guestResources, type Guest } from "./db/schema";
 import { err, ok, type Result } from "./result";
 
 export interface GuestError {
@@ -82,13 +83,17 @@ export function createGuestService(db: NodeSQLiteDatabase) {
     });
   }
 
-  function create(input: unknown, createdBy: string | null): GuestResult<Guest> {
+  function create(
+    input: unknown,
+    createdBy: string | null,
+    initialResources: ResourceInput[] = [],
+  ): GuestResult<Guest> {
     const parsed = values(input);
     if (!parsed.ok) return parsed;
     return database(() => {
       const now = new Date();
-      return ok(
-        db
+      return db.transaction((tx) => {
+        const guest = tx
           .insert(guests)
           .values({
             ...parsed.value,
@@ -99,8 +104,21 @@ export function createGuestService(db: NodeSQLiteDatabase) {
             created_by: createdBy,
           })
           .returning()
-          .get(),
-      );
+          .get();
+        for (const resource of initialResources) {
+          tx.insert(guestResources)
+            .values({
+              ...resource,
+              id: ulid(),
+              guest_id: guest.id,
+              created_at: now,
+              updated_at: now,
+              revision: 1,
+            })
+            .run();
+        }
+        return ok(guest);
+      });
     });
   }
 
@@ -180,6 +198,7 @@ export function createGuestService(db: NodeSQLiteDatabase) {
       const rows = db
         .select({
           ...getTableColumns(guests),
+          resource_count: sql<number>`(SELECT count(*) FROM ${guestResources} WHERE ${guestResources.guest_id} = ${guests.id})`,
           invitation_status: guestInvitations.status,
           invitation_expires_at: guestInvitations.expires_at,
           invitation_last_sent_at: guestInvitations.last_sent_at,
