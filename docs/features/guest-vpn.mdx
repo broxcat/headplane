@@ -11,7 +11,7 @@ Network provisioning is disabled by default.
 
 ## Prerequisites and policy ownership
 
-Use a clean Headscale {versions.headscale.guestVpn} release with database policy mode. Create and validate a restrictive initial policy before enabling Guest provisioning. The network
+Use a stable Headscale {versions.headscale.guestVpn} release, or an explicitly audited and approved custom build of that minor, with database policy mode. Create and validate a restrictive initial policy before enabling Guest provisioning. The network
 scenarios are tested on the harness version in `tests/harness/versions.ts`;
 Older supported Headscale releases remain available for administrative Guest
 features, but Guest VPN provisioning is unavailable. Unknown versions, prereleases and modified builds
@@ -48,15 +48,62 @@ from the internal API URL. Keep the existing invitation configuration, public
 HTTPS URL and secure cookies. Use the file transport during isolated validation;
 real SMTP delivery requires separate operator authorization.
 
+### Custom Headscale builds
+
+Unknown versions and prereleases remain blocked. A `+dirty` suffix, other build
+metadata or a `dirty: true` response never enables provisioning implicitly.
+Audit the executable, its commit, API schema and isolated network behavior first.
+Keep the executable's SHA-256 separately as evidence of the local binary tested.
+
+Configure an exact approval in the server configuration only:
+
+```yaml
+headscale:
+  compatibility:
+    approved_builds:
+      - version: "0.29.6"
+        commit: "a2b1d7863926834e94479dcdd91ab344a9356bd0"
+        fingerprint: "161a320779fb4e60fe2166b8ce3e9cc468a669643c2675b2e6ba9e9ed6a32312"
+```
+
+This example identifies one audited build; it is not a recommendation to trust
+another executable with that version. The fingerprint is SHA-256 over compact
+UTF-8 JSON of the ordered array
+`["headscale-build-v1", versionWithoutLeadingV, commit, buildTime, dirty, go.version, go.os, go.arch]`.
+Preserve prerelease/build suffixes in the version. Require the full lowercase
+40-hex commit, UTC build time, boolean dirty flag and nonempty toolchain/platform
+fields from `/version`; incomplete custom metadata cannot be approved.
+
+Changing any metadata requires a new audit and explicit approval. Provisioning
+and registration re-read `/version`, reject an unapproved or replaced server,
+and log acceptance without credentials. Revocation and reconciliation retain
+durable cleanup requests during outages. Restart Headplane after an approved
+server replacement. The allowlist is never returned to Guest browsers.
+
+These are **reported metadata**, not remote cryptographic attestation. Protect
+the API connection with trusted TLS and restrict privileged access to Headscale.
+An approval does not authorize unsupported minors, unknown builds or prereleases.
+Headplane generally still supports 0.27+, but Guest VPN requires 0.29: 0.27/0.28
+lack the JSON Auth ID registration and policy-check endpoints used by this flow.
+The multiversion suite retains these older servers and checks that Guest
+provisioning makes no changes on them.
+
 ## Administrator workflow
 
 1. Create a Guest with explicit resources, TCP/UDP ports and access duration.
 2. Send and accept the invitation using its separate email verification code.
-3. Open Guest Details and select **Provision Access**. Confirm the operation.
+3. Refresh Guest Details and select **Provision Access**. Confirm the operation.
 4. Wait for the dedicated identity and **awaiting device** state. This step adds
    no permissions and starts no relative countdown.
 5. Complete device registration from the verified Guest browser session.
 6. Check the Access, Identity, Devices and Network access history sections.
+
+The confirmation is bound to the Guest revision, duration, selected resources,
+resource ownership/tags/routes and current canonical policy. Recalculate these
+values before preparation and activation. A changed preview blocks the operation;
+refresh Guest Details and explicitly approve again. A Guest cannot accept that
+change through the device portal. Volatile telemetry and unrelated new devices
+do not invalidate a decision.
 
 Each Guest receives a reserved `hp-guest-<guest-id>` local Headscale user with a
 persisted recovery marker. Never share that identity with a Headplane account
@@ -83,6 +130,18 @@ the displayed `tailscale up --login-server ...` command in PowerShell or a
 terminal, with local administrator privileges when required. Trust the
 coordination server's certificate through the operating system; do not disable
 TLS verification.
+
+A single `tailscaled` instance switches coordination servers; it does not keep
+the official Tailscale tailnet and this Headscale tailnet connected simultaneously.
+Perform laptop validation with physical access or a separate recovery connection.
+Record the original account/control-server choice before switching. Use
+`sudo tailscale login --login-server=<isolated-test-server>` on Linux; follow the
+platform client's custom-control-server flow elsewhere. Expect a temporary loss
+of the original tailnet connection. To return, sign out of the test connection
+and sign in to the original account at `https://controlplane.tailscale.com` using
+the platform client or `sudo tailscale login --login-server=https://controlplane.tailscale.com`.
+Confirm the original tailnet before ending the maintenance window. Never send
+an Auth ID or full registration URL to chat, public logs or screenshots.
 
 Submit the Auth ID printed by the registration page. Treat it as a bearer
 device-registration credential. The portal email session establishes Guest
@@ -130,11 +189,15 @@ when detected. Monitoring has a ten-second polling interval plus API latency.
 
 ## Durable operations and concurrency
 
-Migration 13 adds `guest_vpn_access`, `guest_vpn_devices`,
+Migration 14, after Local Auth, adds `guest_vpn_access`, `guest_vpn_devices`,
 `guest_vpn_auth_claims`, `guest_vpn_sessions`, `guest_vpn_events` and
-`guest_vpn_policy_state`. It preserves the first twelve migrations and all
+`guest_vpn_policy_state`. It preserves the first thirteen migrations and all
 existing rows. Guest records keep their original draft/revoked semantics;
 network timestamps and states live in `guest_vpn_access`.
+The persisted preview hash binds preparation to subsequent activation. Keep
+these additive tables and migration history when rolling back the application;
+verify all Guest access revoked first. An older experimental VPN database
+without a stored preview requires a fresh administrator approval before activation.
 
 The access state machine is:
 
@@ -240,7 +303,7 @@ Linux Chromium harness.
 ![Guest VPN administration on mobile](../assets/guest-vpn-mobile.png)
 
 Before a future deployment, back up SQLite through its backup API, test schema
-12 → 13 on a copy, retain the policy and existing native release, and obtain
+13 → 14 on a copy, retain the policy and existing native release, and obtain
 explicit activation approval. Keep provisioning disabled until the actual
 Headscale build and exclusive-writer contract are validated. Do not disable the
 feature, remove its API key or downgrade while non-terminal accesses remain;
@@ -250,3 +313,12 @@ Do not restore SQLite over newer invitations or network-operation history.
 
 The immutable `v0.8.1-guest` tag is unchanged. This phase creates no release and
 does not deploy or modify the existing tailnet.
+
+See the [native validation record](/guest-vpn-validation-2026-10-30) for the
+audited artifact, API comparison, network scenarios and remaining laptop gate.
+
+The LAN-only `http://192.168.0.120:8085` test endpoint is not a final deployment
+target. Prepare stable DNS such as `https://headscale.example.com`, a valid TLS
+certificate, matching Headscale `server_url` and a reviewed external-access plan
+before any later exposure. This validation deploys none of those infrastructure
+changes.

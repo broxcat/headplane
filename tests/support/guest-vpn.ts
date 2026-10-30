@@ -1,7 +1,7 @@
 import { eq } from "drizzle-orm";
 
 import { guestVpnAccess } from "~/server/db/schema";
-import type { GuestVpnResult } from "~/server/guest-vpn";
+import type { GuestVpnResult, GuestVpnService } from "~/server/guest-vpn";
 import type { ResourceInput } from "~/utils/guest-resources";
 
 import type { TestApp } from "./app";
@@ -11,8 +11,18 @@ export function requireVpnResult<T>(result: GuestVpnResult<T>): T {
   if (!result.ok) throw new Error(`${result.error.code}: ${result.error.message}`);
   return result.value;
 }
-export async function invited(app: TestApp, resource: ResourceInput[], email: string) {
-  const created = app.ctx.guests.create({ email, duration: "43200" }, null, resource);
+
+export async function provisionWithPreview(vpn: GuestVpnService, id: string, revision: number) {
+  const preview = await vpn.preview(id);
+  return preview.ok ? vpn.provision(id, revision, null, preview.value) : preview;
+}
+export async function invited(
+  app: TestApp,
+  resource: ResourceInput[],
+  email: string,
+  plan: Record<string, unknown> = { duration: "43200" },
+) {
+  const created = app.ctx.guests.create({ email, ...plan }, null, resource);
   if (!created.ok) throw new Error(created.error.message);
   const id = created.value.id;
   requireVpnResult(await app.ctx.invitations.send(id, 1, 24, null));

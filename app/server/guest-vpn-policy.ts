@@ -5,6 +5,7 @@ import { parseTree, type Node, type ParseError } from "jsonc-parser";
 import type { Machine } from "~/types";
 import type { ResourceInput } from "~/utils/guest-resources";
 
+import type { Guest } from "./db/schema";
 import { resourceCatalog, validateResources } from "./guest-resources";
 
 type Json = null | boolean | number | string | Json[] | { [key: string]: Json };
@@ -145,6 +146,43 @@ export function requestedPermission(
           },
     ),
   };
+}
+
+/** Bind the administrator's decision to policy and relevant inventory, while
+ * excluding volatile telemetry and unrelated nodes from the comparison. */
+export function provisioningPreviewHash(
+  guest: Pick<Guest, "id" | "revision" | "requested_duration_seconds" | "requested_expires_at">,
+  selections: ResourceInput[],
+  nodes: Machine[],
+  raw: string,
+) {
+  const permission = requestedPermission(guest.id, selections, nodes, raw);
+  const selected = new Set(selections.map((r) => r.node_id));
+  const inventory = nodes
+    .filter((n) => selected.has(n.id))
+    .map((n) => ({
+      id: n.id,
+      user: n.user?.id ?? null,
+      addresses: [...n.ipAddresses].sort(),
+      tags: [...n.tags].sort(),
+      routes: [...(n.availableRoutes ?? [])].sort(),
+      approved: [...(n.approvedRoutes ?? [])].sort(),
+    }))
+    .sort((a, b) => a.id.localeCompare(b.id));
+  return createHash("sha256")
+    .update(
+      canonical({
+        guest: guest.id,
+        revision: guest.revision,
+        duration: guest.requested_duration_seconds,
+        deadline: guest.requested_expires_at?.toISOString() ?? null,
+        policy: policyHash(raw),
+        permission: permission as unknown as Json,
+        selections: selections as unknown as Json,
+        inventory,
+      }),
+    )
+    .digest("hex");
 }
 
 // Supported proof deliberately excludes unknown extensions. No restrictive

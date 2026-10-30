@@ -28,6 +28,19 @@ export function accessDeadline(
 export function retryDeadline(attempt: number, now: number) {
   return new Date(now + Math.min(300_000, 1000 * 2 ** Math.min(attempt, 8)));
 }
+/** A new expiration intent takes priority over an old monitoring backoff.
+ * Once cleanup has begun, keep its persisted backoff even across restarts. */
+export function reconciliationDue(
+  access: Pick<GuestVpnAccess, "retry_at" | "desired_state">,
+  expired: boolean,
+  now = Date.now(),
+) {
+  return (
+    !access.retry_at ||
+    access.retry_at.getTime() <= now ||
+    (expired && access.desired_state !== "expired")
+  );
+}
 export function canTransition(from: GuestVpnAccess["state"], to: GuestVpnAccess["state"]) {
   if (from === to) return true;
   switch (from) {

@@ -279,6 +279,7 @@ export const guestVpnAccess = sqliteTable(
       .notNull()
       .default("active"),
     phase: text("phase").notNull().default("prepared"),
+    preview_hash: text("preview_hash"),
     permission: text("permission", { mode: "json" }).$type<
       import("../guest-vpn-policy").ManagedPermission
     >(),

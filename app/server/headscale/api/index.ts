@@ -19,6 +19,7 @@
 
 import log from "~/utils/log";
 
+import { parseBuildInfo, type BuildInfo } from "./build-info";
 import { type Capabilities, capabilitiesFor } from "./capabilities";
 import { isDataWithApiError } from "./error-client";
 import { type ApiKeyApi, makeApiKeyApi } from "./resources/api-keys";
@@ -27,13 +28,16 @@ import { makeNodeApi, type NodeApi } from "./resources/nodes";
 import { makePolicyApi, type PolicyApi } from "./resources/policy";
 import { makePreAuthKeyApi, type PreAuthKeyApi } from "./resources/pre-auth-keys";
 import { makeUserApi, type UserApi } from "./resources/users";
-import { formatServerVersion, parseServerVersion, type ServerVersion } from "./server-version";
+import { formatServerVersion, type ServerVersion } from "./server-version";
 import { createTransport, type Transport } from "./transport";
 
 const MIN_SUPPORTED_VERSION = "0.27.0";
 
 export interface Headscale {
   readonly version: ServerVersion;
+  readonly build: BuildInfo;
+  /** Re-read the running server before security-sensitive Guest mutations. */
+  inspectBuild(): Promise<BuildInfo>;
   readonly capabilities: Capabilities;
   /** True if the Headscale server's `/health` endpoint returns 200. */
   health(): Promise<boolean>;
@@ -68,7 +72,8 @@ export async function createHeadscale(opts: CreateHeadscaleOptions): Promise<Hea
   const transport = await createTransport({ url: opts.url, certPath: opts.certPath });
   const retryIntervalMs = opts.retryIntervalMs ?? DEFAULT_RETRY_INTERVAL_MS;
 
-  let version: ServerVersion = parseServerVersion("unreachable");
+  let build = parseBuildInfo({ version: "unreachable" });
+  let version: ServerVersion = build.version;
   let capabilities: Capabilities = capabilitiesFor(version);
   let detected = false;
   let retryTimer: ReturnType<typeof setTimeout> | undefined;
@@ -91,8 +96,8 @@ export async function createHeadscale(opts: CreateHeadscaleOptions): Promise<Hea
 
   async function detectOnce(): Promise<boolean> {
     try {
-      const { version: raw } = await transport.getPublic<{ version: string }>("/version");
-      settle(parseServerVersion(raw));
+      build = await inspectBuild();
+      settle(build.version);
       return true;
     } catch (error) {
       // 404 means Headscale is reachable but predates 0.27.0 (where
@@ -110,6 +115,10 @@ export async function createHeadscale(opts: CreateHeadscaleOptions): Promise<Hea
       log.debug("api", "Headscale /version probe failed: %s", String(error));
       return false;
     }
+  }
+
+  async function inspectBuild() {
+    return parseBuildInfo(await transport.getPublic<unknown>("/version"));
   }
 
   function scheduleRetry() {
@@ -135,6 +144,10 @@ export async function createHeadscale(opts: CreateHeadscaleOptions): Promise<Hea
   }
 
   return {
+    get build() {
+      return build;
+    },
+    inspectBuild,
     // Getters so callers always observe the latest detected values
     // without having to know about the retry loop.
     get version() {

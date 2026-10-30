@@ -10,9 +10,14 @@ import { userAction } from "~/routes/users/user-actions";
 import { guestVpnAccess } from "~/server/db/schema";
 import { invitationCsrf } from "~/server/invitation-tokens";
 
-import { createTailnet } from "../../harness/tailnet";
 import { statusOf } from "../../support/app";
-import { invited, requireVpnResult as value, vpnState as state } from "../../support/guest-vpn";
+import { createGuestTailnet as createTailnet } from "../../support/guest-tailnet";
+import {
+  invited,
+  provisionWithPreview,
+  requireVpnResult as value,
+  vpnState as state,
+} from "../../support/guest-vpn";
 
 test("guest portal sessions, Origin/CSRF, rate limits and reserved identities cannot be bypassed through dashboard routes", async () => {
   await using tailnet = await createTailnet({ policy: { grants: [] } });
@@ -57,7 +62,7 @@ test("guest portal sessions, Origin/CSRF, rate limits and reserved identities ca
   expect({ users: await tailnet.api.users.list(), policy: await tailnet.api.policy.get() }).toEqual(
     before,
   );
-  value(await app.ctx.guestVpn.provision(guest.id, guest.revision, null));
+  value(await provisionWithPreview(app.ctx.guestVpn, guest.id, guest.revision));
   const a = state(app, guest.id);
   const as = (await vpnCookie(app.ctx.config).serialize(guest.portal!)).split(";")[0];
   const headers = { Origin: "http://localhost:3099" };

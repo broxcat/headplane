@@ -5,9 +5,12 @@ import {
   guestPolicyIdentity,
   parseVpnPolicy,
   policyHash,
+  provisioningPreviewHash,
   verifyIsolation,
   type ManagedPermission,
 } from "~/server/guest-vpn-policy";
+import type { Machine } from "~/types";
+import type { ResourceInput } from "~/utils/guest-resources";
 
 const id = "01M66M24KNQ66SXYSB28KW5P2P";
 const { user, group } = guestPolicyIdentity(id);
@@ -17,6 +20,66 @@ const permission: ManagedPermission = {
   section: "acls",
   rules: [{ action: "accept", src: [group], dst: ["100.64.0.5:8006"], proto: "tcp" }],
 };
+
+test("preview approval changes with resource ownership, tags, routes or Guest intentions, but not telemetry", () => {
+  const guest = { id, revision: 1, requested_duration_seconds: 43200, requested_expires_at: null };
+  const node: Machine = {
+    id: "1",
+    machineKey: "fixture-machine",
+    nodeKey: "fixture-node",
+    discoKey: "fixture-disco",
+    ipAddresses: ["100.64.0.5"],
+    name: "resource",
+    givenName: "resource",
+    online: true,
+    lastSeen: "2026-10-30T00:00:00Z",
+    expiry: null,
+    createdAt: "2026-10-30T00:00:00Z",
+    registerMethod: "REGISTER_METHOD_CLI",
+    tags: [],
+    approvedRoutes: [],
+    availableRoutes: [],
+    subnetRoutes: [],
+    user: { id: "owner", name: "operator", createdAt: "2026-10-30T00:00:00Z" },
+  };
+  const selection: ResourceInput = {
+    kind: "node",
+    node_id: "1",
+    address: "100.64.0.5",
+    route: null,
+    protocol: "tcp",
+    ports: "8006",
+  };
+  const policy = '{"acls":[]}';
+  const original = provisioningPreviewHash(guest, [selection], [node], policy);
+  for (const changed of [
+    { ...node, user: { ...node.user!, id: "different-owner" } },
+    { ...node, tags: ["tag:resource"] },
+    { ...node, approvedRoutes: ["10.44.0.0/24"] },
+    { ...node, availableRoutes: ["10.44.0.0/24"] },
+  ])
+    expect(provisioningPreviewHash(guest, [selection], [changed], policy)).not.toBe(original);
+  expect(
+    provisioningPreviewHash(
+      guest,
+      [selection],
+      [{ ...node, online: false, lastSeen: "later" }],
+      policy,
+    ),
+  ).toBe(original);
+  expect(provisioningPreviewHash(guest, [selection], [node, { ...node, id: "2" }], policy)).toBe(
+    original,
+  );
+  expect(provisioningPreviewHash({ ...guest, revision: 2 }, [selection], [node], policy)).not.toBe(
+    original,
+  );
+  expect(
+    provisioningPreviewHash(guest, [{ ...selection, ports: "8007" }], [node], policy),
+  ).not.toBe(original);
+  expect(provisioningPreviewHash(guest, [selection], [node], '{"acls":[],"groups":{}}')).not.toBe(
+    original,
+  );
+});
 
 test("canonical policy hashes ignore formatting and object-key order but retain rule meaning", () => {
   expect(policyHash('{"acls":[],"groups":{}}')).toBe(

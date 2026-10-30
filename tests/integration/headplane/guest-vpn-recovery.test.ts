@@ -6,8 +6,13 @@ import { createGuestVpnService } from "~/server/guest-vpn";
 import { policyHash } from "~/server/guest-vpn-policy";
 
 import { headscaleFaults } from "../../harness/headscale-faults";
-import { createTailnet } from "../../harness/tailnet";
-import { invited, requireVpnResult as value, vpnState as state } from "../../support/guest-vpn";
+import { createGuestTailnet as createTailnet } from "../../support/guest-tailnet";
+import {
+  invited,
+  provisionWithPreview,
+  requireVpnResult as value,
+  vpnState as state,
+} from "../../support/guest-vpn";
 
 test("failed user creation can be cancelled after Headscale confirms that no dedicated user or permissions exist", async () => {
   await using tailnet = await createTailnet({ policy: { grants: [] } });
@@ -36,7 +41,7 @@ test("failed user creation can be cancelled after Headscale confirms that no ded
     "create-failed@example.test",
   );
   faults.denyUserCreationOnce();
-  expect(await app.ctx.guestVpn.provision(guest.id, guest.revision, null)).toMatchObject({
+  expect(await provisionWithPreview(app.ctx.guestVpn, guest.id, guest.revision)).toMatchObject({
     ok: false,
   });
   expect(state(app, guest.id)).toMatchObject({ state: "error", headscale_user_id: null });
@@ -78,7 +83,7 @@ test("lost policy replies, retries, restart recovery and drift never imply succe
   gate.release();
   await rejected;
   expect((await tailnet.api.policy.get()).policy).toBe(manual);
-  value(await app.ctx.guestVpn.provision(guest.id, guest.revision, null));
+  value(await provisionWithPreview(app.ctx.guestVpn, guest.id, guest.revision));
   const pending = await tailnet.pendingNode({ name: "recovery-first-device" });
   faults.dropPolicyReply();
   expect(
@@ -91,7 +96,7 @@ test("lost policy replies, retries, restart recovery and drift never imply succe
   );
   expect(await first.canConnect(address, 8006)).toBe(false);
   expect(app.ctx.db.select().from(guestVpnPolicyState).get()?.candidate_policy).toBeNull();
-  value(await app.ctx.guestVpn.provision(guest.id, guest.revision, null));
+  value(await provisionWithPreview(app.ctx.guestVpn, guest.id, guest.revision));
   const secondPending = await tailnet.pendingNode({ name: "recovery-second-device" });
   value(
     await app.ctx.guestVpn.register(
@@ -152,7 +157,7 @@ test("lost policy replies, retries, restart recovery and drift never imply succe
     [{ kind: "node", node_id: service.id, address, route: null, protocol: "tcp", ports: "8006" }],
     "drift@example.test",
   );
-  value(await recovered.provision(driftGuest.id, driftGuest.revision, null));
+  value(await provisionWithPreview(recovered, driftGuest.id, driftGuest.revision));
   const driftPending = await tailnet.pendingNode({ name: "drift-device" });
   value(
     await recovered.register(driftGuest.portal!, driftPending.registerUrl.split("/register/")[1]),

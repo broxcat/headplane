@@ -6,6 +6,7 @@ CREATE TABLE `guest_vpn_access` (
 	`state` text DEFAULT 'not_provisioned' NOT NULL,
 	`desired_state` text DEFAULT 'active' NOT NULL,
 	`phase` text DEFAULT 'prepared' NOT NULL,
+	`preview_hash` text,
 	`permission` text,
 	`activated_at` integer,
 	`expires_at` integer,

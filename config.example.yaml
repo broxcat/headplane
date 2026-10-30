@@ -136,6 +136,14 @@ headscale:
   # as read-only.
   # dns_records_path: "/var/lib/headscale/extra_records.json"
 
+  # Optional exact approval of an audited custom Headscale build for Guest VPN.
+  # See docs/features/guest-vpn.mdx for the metadata fingerprint algorithm.
+  # compatibility:
+  #   approved_builds:
+  #     - version: "0.29.6"
+  #       commit: "<full lowercase 40-hex commit>"
+  #       fingerprint: "<audited lowercase 64-hex metadata fingerprint>"
+
 # Integration configurations for Headplane to interact with Headscale
 integration:
   # The Headplane agent periodically syncs node information (version, OS, etc.)
@@ -343,7 +351,7 @@ integration:
 #     password_path: /run/secrets/smtp-password
 
 # Optional Guest VPN lifecycle, disabled by default. Read the Guest VPN guide.
-# Requires a clean Headscale 0.29 release, database policy mode, a server-side
+# Requires stable Headscale 0.29 (or an explicitly audited build approval), database policy mode, a server-side
 # API key and Headplane as the ONLY policy writer (including CLI/automation).
 # guest_vpn:
 #   enabled: false

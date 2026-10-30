@@ -1,7 +1,7 @@
 {
   "version": "7",
   "dialect": "sqlite",
-  "id": "7baa36e4-e339-4244-b2aa-ee89dff5fa0f",
+  "id": "642cf8ef-0482-45e2-8f49-811880ada043",
   "prevIds": ["1be75b33-6b82-4bdd-997c-6f07adb3732f"],
   "ddl": [
     {
@@ -683,6 +683,16 @@
       "default": "'prepared'",
       "generated": null,
       "name": "phase",
+      "entityType": "columns",
+      "table": "guest_vpn_access"
+    },
+    {
+      "type": "text",
+      "notNull": false,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "preview_hash",
       "entityType": "columns",
       "table": "guest_vpn_access"
     },

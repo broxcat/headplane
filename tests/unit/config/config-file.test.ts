@@ -18,6 +18,25 @@ const oidc = {
   headscale_api_key: "my-api-key",
 };
 
+test("custom build approvals require a full commit and fingerprint, not a dirty-build bypass", async () => {
+  const approved = { version: "0.29.6", commit: "a".repeat(40), fingerprint: "b".repeat(64) };
+  const configFor = (entry: unknown) =>
+    writeConfig({
+      ...base,
+      headscale: { ...base.headscale, compatibility: { approved_builds: [entry] } },
+    });
+  expect(
+    (await loadConfig(await configFor(approved))).headscale.compatibility?.approved_builds,
+  ).toEqual([approved]);
+  for (const invalid of [
+    { ...approved, version: "0.29.6+dirty" },
+    { ...approved, commit: "abcdef" },
+    { ...approved, fingerprint: undefined },
+    { ...approved, fingerprint: "*" },
+  ])
+    await expect(loadConfig(await configFor(invalid))).rejects.toBeInstanceOf(ConfigError);
+});
+
 function writeConfig(content: unknown) {
   return tempFile("config.yaml", dump(content));
 }

@@ -7,9 +7,12 @@ import { expect, test } from "vitest";
 
 import { startHeadplane, writeHeadplaneConfig } from "../../harness/headplane";
 import { freePort } from "../../harness/headscale";
-import { createTailnet } from "../../harness/tailnet";
 import { waitFor } from "../../harness/wait";
 import { guestMessages, mailCode, mailToken } from "../../support/guest-mail";
+import {
+  createGuestTailnet as createTailnet,
+  guestBuildApprovals,
+} from "../../support/guest-tailnet";
 
 test.runIf(process.env.HP_GUEST_BROWSER === "1")(
   "Guest email verification, isolated device onboarding, revoke and responsive themes through browser HTTP",
@@ -30,6 +33,7 @@ test.runIf(process.env.HP_GUEST_BROWSER === "1")(
       integration: { docker: { enabled: false } },
       guestInvitations: { enabled: true, transport: "file" },
       guestVpn: { enabled: true, single_policy_writer: true },
+      headscale: { compatibility: { approved_builds: await guestBuildApprovals() } },
     });
     let server = startHeadplane(config, port, { isProduction: true });
     let stopped = once(server, "exit");

@@ -54,6 +54,14 @@ export default function VpnDetails({
         description="Invitation validity, network duration and retained guest records have independent lifecycles."
       >
         {!vpn.enabled && <Callout className="mb-4">{vpn.reason}</Callout>}
+        {vpn.enabled &&
+          vpn.previewError &&
+          !["active", "revoked", "expired"].includes(a?.state ?? "") &&
+          accepted && (
+            <Callout className="mb-4" variant="error">
+              {vpn.previewError}
+            </Callout>
+          )}
         {a?.error_code && (
           <Callout variant="error" className="mb-4">
             Guest isolation cannot be guaranteed. Operation requires review: {a.error_code}. No
@@ -83,11 +91,14 @@ export default function VpnDetails({
             <ActionDialog
               title="Provision guest access?"
               intent="provision_access"
-              fields={{ revision: String(guest.revision) }}
+              fields={{ revision: String(guest.revision), preview_hash: vpn.previewHash ?? "" }}
               submitLabel={a ? "Retry Provisioning" : "Provision Access"}
               description="Validate isolation and create a dedicated identity. Network permissions are granted only after verified device onboarding. Headplane must be the only policy writer."
               trigger={
-                <Button variant="primary" disabled={!vpn.enabled || !accepted || !resourceCount}>
+                <Button
+                  variant="primary"
+                  disabled={!vpn.enabled || !accepted || !resourceCount || !vpn.previewHash}
+                >
                   {a ? "Retry Provisioning" : "Provision Access"}
                 </Button>
               }

@@ -4,8 +4,20 @@ import {
   accessDeadline,
   canTransition,
   retryDeadline,
+  reconciliationDue,
   deviceHasExpired,
 } from "~/server/guest-vpn-lifecycle";
+
+test("a prior monitoring backoff cannot postpone the first expiration request, while repeated cleanup retains its backoff", () => {
+  const now = Date.parse("2027-01-01T00:00:00Z");
+  const future = new Date(now + 300_000);
+  expect(reconciliationDue({ retry_at: future, desired_state: "active" }, true, now)).toBe(true);
+  expect(reconciliationDue({ retry_at: future, desired_state: "active" }, false, now)).toBe(false);
+  expect(reconciliationDue({ retry_at: future, desired_state: "expired" }, true, now)).toBe(false);
+  expect(reconciliationDue({ retry_at: new Date(now), desired_state: "expired" }, true, now)).toBe(
+    true,
+  );
+});
 
 test("a Go zero-time means unlimited device lifetime and cannot confirm revocation", () => {
   const now = Date.parse("2027-01-01T00:00:00Z");

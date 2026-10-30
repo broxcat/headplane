@@ -113,6 +113,8 @@ export async function freePort() {
 
 export async function startHeadscale(options: {
   version: HeadscaleVersion;
+  // Execute an audited local binary inside the disposable container only.
+  binaryPath?: string;
   // Labels the container `${HARNESS_LABEL}=${id}`.
   id: string;
   network?: tc.StartedNetwork;
@@ -198,6 +200,11 @@ export async function startHeadscale(options: {
     if (options.network) {
       builder = builder.withNetwork(options.network).withNetworkAliases(ALIAS);
     }
+    if (options.binaryPath) {
+      builder = builder.withCopyFilesToContainer([
+        { source: options.binaryPath, target: "/ko-app/headscale", mode: 0o755 },
+      ]);
+    }
 
     return builder.start();
   }
@@ -241,8 +248,10 @@ export async function startHeadscale(options: {
     // which Headscale's records watcher ignores. A write from inside Docker
     // arrives as separate events, so rewrite the file from there.
     async reloadRecords() {
-      await container.copyFilesToContainer([
-        { source: recordsPath, target: "/etc/headscale/extra-records.json" },
+      // Snapshot before archiving: this is a mutable bind-mounted file. Tar's
+      // stat and later stream read can otherwise observe different revisions.
+      await container.copyContentToContainer([
+        { content: await readFile(recordsPath), target: "/etc/headscale/extra-records.json" },
       ]);
     },
 

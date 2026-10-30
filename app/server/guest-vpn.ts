@@ -7,6 +7,7 @@ import { ulid } from "ulidx";
 import type { Machine } from "~/types";
 import { accessDurationLabel } from "~/utils/guest-access";
 import type { ResourceInput } from "~/utils/guest-resources";
+import log from "~/utils/log";
 
 import type { HeadplaneConfig } from "./config/config-schema";
 import { ConfigError } from "./config/error";
@@ -27,6 +28,7 @@ import {
   accessDeadline,
   canTransition,
   retryDeadline,
+  reconciliationDue,
   deviceHasExpired,
 } from "./guest-vpn-lifecycle";
 import {
@@ -34,11 +36,13 @@ import {
   GuestVpnError,
   guestPolicyIdentity,
   requestedPermission,
+  provisioningPreviewHash,
   policyHash,
   verifyIsolation,
   vpnAssert,
 } from "./guest-vpn-policy";
 import type { Headscale } from "./headscale/api";
+import { guestBuildCompatibility } from "./headscale/api/build-info";
 import { invitationToken, tokenHash, validInvitationToken } from "./invitation-tokens";
 import { err, ok, type Result } from "./result";
 
@@ -69,14 +73,9 @@ export function createGuestVpnService(options: {
   verifiedInvitation(session: string): string | null;
 }) {
   const { db, headscale, config } = options;
-  const version = headscale.version;
-  // No assumptions about future/dirty builds at this security boundary.
-  const compatible =
-    !version.unknown &&
-    version.major === 0 &&
-    version.minor === 29 &&
-    !version.prerelease &&
-    !version.build;
+  const approvals = config.headscale.compatibility?.approved_builds;
+  const compatibility = guestBuildCompatibility(headscale.build, approvals);
+  const compatible = ["supported_release", "approved_build"].includes(compatibility);
   const enabled = Boolean(
     config.guest_vpn?.enabled &&
     config.guest_vpn.single_policy_writer &&
@@ -88,7 +87,7 @@ export function createGuestVpnService(options: {
     : !config.guest_vpn.single_policy_writer
       ? "Guest VPN requires the exclusive Headplane policy-writer contract."
       : !compatible
-        ? "Guest VPN requires a tested, unmodified Headscale 0.29 release."
+        ? `Guest VPN requires supported Headscale 0.29 or an explicitly approved build (${compatibility}).`
         : !config.headscale.api_key
           ? "Guest VPN requires a server-side Headscale API key for recovery and expiry."
           : null;
@@ -156,8 +155,35 @@ export function createGuestVpnService(options: {
       .where(eq(access.guest_id, id))
       .run();
   }
-  function requireEnabled() {
+  let loggedBuild: string | null = null;
+  async function requireEnabled(verifyBuild = false) {
     vpnAssert(enabled && api, "disabled", reason ?? "Guest VPN is unavailable.");
+    // Revocation requests must remain durable during a control-server outage.
+    // Only operations that can grant access depend on a fresh build probe.
+    if (!verifyBuild) return;
+    const current = await headscale.inspectBuild();
+    const status = guestBuildCompatibility(current, approvals);
+    vpnAssert(
+      ["supported_release", "approved_build"].includes(status),
+      "build_unapproved",
+      "The running Headscale build is not approved. No Guest operation was started.",
+    );
+    vpnAssert(
+      current.version.raw === headscale.build.version.raw &&
+        current.fingerprint === headscale.build.fingerprint,
+      "build_changed",
+      "Headscale changed since startup. Review compatibility and restart Headplane.",
+    );
+    if (status === "approved_build" && loggedBuild !== current.fingerprint) {
+      log.warn(
+        "api",
+        "Explicitly approved custom Headscale build accepted: %s commit=%s fingerprint=%s",
+        current.version.raw,
+        current.commit,
+        current.fingerprint,
+      );
+      loggedBuild = current.fingerprint;
+    }
   }
   async function protect<T>(operation: () => Promise<T>): Promise<GuestVpnResult<T>> {
     try {
@@ -318,7 +344,12 @@ export function createGuestVpnService(options: {
     let a = record(id);
     vpnAssert(a, "state", "This guest has no VPN access record.");
     if (a.state === target && !a.permission) return;
-    update(id, { state: "revoking", desired_state: target, phase: "removing_policy" });
+    update(id, {
+      state: "revoking",
+      desired_state: target,
+      phase: "removing_policy",
+      ...(a.desired_state !== target ? { attempts: 0, retry_at: null } : {}),
+    });
     audit(id, target === "expired" ? "automatic_expiration" : "revocation_requested", actor);
     try {
       const current = await writer.current(api!, check);
@@ -418,6 +449,11 @@ export function createGuestVpnService(options: {
     }
     const current = await writer.current(api!, check);
     a = record(id)!;
+    vpnAssert(
+      a.preview_hash === provisioningPreviewHash(guest, selections(id), nodes, current.policy),
+      "preview_changed",
+      "Policy or resource inventory changed. Refresh and approve a new provisioning preview.",
+    );
     const permission = requestedPermission(id, selections(id), nodes, current.policy);
     const candidate = changeGuestPermission(
       current.policy,
@@ -486,9 +522,10 @@ export function createGuestVpnService(options: {
     id: string,
     revision: number,
     actor: string | null,
+    previewHash?: string,
   ): Promise<GuestVpnResult<void>> {
     return protect(async () => {
-      requireEnabled();
+      await requireEnabled(true);
       await writer.locked(async ({ check }) => {
         const guest = accepted(id);
         vpnAssert(
@@ -520,6 +557,17 @@ export function createGuestVpnService(options: {
         const { user } = guestPolicyIdentity(id);
         verifyIsolation(current.policy, user, writer.permissions());
         requestedPermission(id, selections(id), nodes, current.policy);
+        const currentPreview = provisioningPreviewHash(
+          guest,
+          selections(id),
+          nodes,
+          current.policy,
+        );
+        vpnAssert(
+          previewHash === currentPreview,
+          "preview_changed",
+          "Policy or resource inventory changed. Refresh and approve a new provisioning preview.",
+        );
         if (!a) {
           vpnAssert(
             (await api!.users.list({ name: user })).length === 0,
@@ -539,6 +587,7 @@ export function createGuestVpnService(options: {
                 user_marker: `Headplane Guest ${id} ${randomBytes(16).toString("hex")}`,
                 state: "provisioning",
                 phase: "creating_user",
+                preview_hash: currentPreview,
                 created_at: new Date(),
                 updated_at: new Date(),
               })
@@ -548,7 +597,12 @@ export function createGuestVpnService(options: {
         }
         audit(id, "provisioning_started", actor);
         try {
-          update(id, { state: "provisioning", error_code: null, retry_at: null });
+          update(id, {
+            state: "provisioning",
+            preview_hash: currentPreview,
+            error_code: null,
+            retry_at: null,
+          });
           if (!a.headscale_user_id) {
             check();
             let found = await api!.users.list({ name: a.user_name });
@@ -591,7 +645,7 @@ export function createGuestVpnService(options: {
 
   async function register(session: string, authId: string): Promise<GuestVpnResult<void>> {
     return protect(async () => {
-      requireEnabled();
+      await requireEnabled(true);
       const id = sessionGuest(session);
       vpnAssert(id, "session", "The onboarding session is unavailable. Contact the administrator.");
       vpnAssert(
@@ -610,6 +664,17 @@ export function createGuestVpnService(options: {
         await identity(a);
         const current = await writer.current(api!, check);
         verifyIsolation(current.policy, a.user_name, writer.permissions());
+        vpnAssert(
+          a.preview_hash ===
+            provisioningPreviewHash(
+              accepted(id),
+              selections(id),
+              await api!.nodes.list(),
+              current.policy,
+            ),
+          "preview_changed",
+          "Policy or resource inventory changed. Ask the administrator to approve a new provisioning preview.",
+        );
         vpnAssert(
           !db
             .select()
@@ -707,7 +772,7 @@ export function createGuestVpnService(options: {
 
   async function revoke(id: string, revision: number, actor: string | null) {
     return protect(async () => {
-      requireEnabled();
+      await requireEnabled();
       await writer.locked(async ({ check }) => {
         const a = record(id);
         vpnAssert(
@@ -722,7 +787,7 @@ export function createGuestVpnService(options: {
 
   async function expireDevice(id: string, revision: number, nodeId: string, actor: string | null) {
     return protect(async () => {
-      requireEnabled();
+      await requireEnabled();
       await writer.locked(async ({ check }) => {
         const a = record(id);
         vpnAssert(
@@ -748,7 +813,7 @@ export function createGuestVpnService(options: {
 
   async function reconcile(): Promise<GuestVpnResult<void>> {
     return protect(async () => {
-      requireEnabled();
+      await requireEnabled();
       await writer.locked(async ({ check }) => {
         // Recover a policy applied immediately before a process crash. It is
         // never sufficient evidence on its own to announce active access.
@@ -760,7 +825,7 @@ export function createGuestVpnService(options: {
         }
         for (let a of db.select().from(access).all()) {
           if (a.state === "not_provisioned") continue;
-          if (a.retry_at && a.retry_at.getTime() > Date.now()) continue;
+          if (!reconciliationDue(a, due(a))) continue;
           try {
             if (["revoked", "expired"].includes(a.state)) {
               if (!a.headscale_user_id) {
@@ -903,6 +968,23 @@ export function createGuestVpnService(options: {
       return err({ code: "database", message: "Could not prepare the onboarding session." });
     }
   }
+  async function preview(id: string): Promise<GuestVpnResult<string>> {
+    return protect(async () => {
+      await requireEnabled(true);
+      const guest = accepted(id);
+      const [current, nodes] = await Promise.all([api!.policy.get(), api!.nodes.list()]);
+      const stored = writer.status();
+      vpnAssert(
+        current.updatedAt &&
+          !stored.pending &&
+          (!stored.hash || stored.hash === policyHash(current.policy)),
+        "policy_drift",
+        "Policy requires reconciliation before a new provisioning preview.",
+      );
+      verifyIsolation(current.policy, guestPolicyIdentity(id).user, writer.permissions());
+      return provisioningPreviewHash(guest, selections(id), nodes, current.policy);
+    });
+  }
   async function get(id: string) {
     return protect(async () => {
       const a = record(id) ?? null;
@@ -972,6 +1054,7 @@ export function createGuestVpnService(options: {
         .all();
       // The ownership marker is for recovery, not display or guest output.
       const safe = a ? { ...a, user_marker: undefined } : null;
+      const approval = enabled ? await preview(id) : null;
       return {
         enabled,
         reason,
@@ -979,13 +1062,15 @@ export function createGuestVpnService(options: {
         nodes,
         inventoryError,
         effectiveStatus,
+        previewHash: approval?.ok ? approval.value : null,
+        previewError: approval && !approval.ok ? approval.error.message : null,
         events: history,
       };
     });
   }
   async function portal(session: string) {
     return protect(async () => {
-      requireEnabled();
+      await requireEnabled();
       const id = sessionGuest(session);
       vpnAssert(id, "session", "Onboarding session unavailable. Contact the administrator.");
       const a = record(id);
@@ -1045,6 +1130,7 @@ export function createGuestVpnService(options: {
     openSession,
     sessionGuest,
     provision,
+    preview,
     register,
     revoke,
     expireDevice,

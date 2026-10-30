@@ -6,10 +6,15 @@ import { guestVpnAccess, guestVpnEvents } from "~/server/db/schema";
 import { guestPolicyIdentity, policyHash } from "~/server/guest-vpn-policy";
 import type { ResourceInput } from "~/utils/guest-resources";
 
-import { createTailnet } from "../../harness/tailnet";
 import { testedVersions } from "../../harness/versions";
 import { statusOf } from "../../support/app";
-import { invited, requireVpnResult as value, vpnState as state } from "../../support/guest-vpn";
+import { createGuestTailnet as createTailnet } from "../../support/guest-tailnet";
+import {
+  invited,
+  provisionWithPreview,
+  requireVpnResult as value,
+  vpnState as state,
+} from "../../support/guest-vpn";
 
 describe.for(testedVersions())("guest network lifecycle on Headscale %s", (version) => {
   for (const model of ["acls", "grants"] as const)
@@ -49,7 +54,9 @@ describe.for(testedVersions())("guest network lifecycle on Headscale %s", (versi
           users: await tailnet.api.users.list(),
           policy: await tailnet.api.policy.get(),
         };
-        expect(await app.ctx.guestVpn.provision(guest.id, guest.revision, null)).toMatchObject({
+        expect(
+          await provisionWithPreview(app.ctx.guestVpn, guest.id, guest.revision),
+        ).toMatchObject({
           ok: false,
           error: { code: "isolation" },
         });
@@ -140,13 +147,17 @@ describe.for(testedVersions())("guest network lifecycle on Headscale %s", (versi
             await app.call(guestAction, `/guests/${guestA.id}`, {
               as: owner,
               params: { id: guestA.id },
-              form: { intent: "provision_access", revision: String(guestA.revision) },
+              form: {
+                intent: "provision_access",
+                revision: String(guestA.revision),
+                preview_hash: "0".repeat(64),
+              },
             }),
           ),
         ).toBe(403);
-        value(await app.ctx.guestVpn.provision(guestA.id, guestA.revision, null));
+        value(await provisionWithPreview(app.ctx.guestVpn, guestA.id, guestA.revision));
         const linkedId = state(app, guestA.id).headscale_user_id;
-        value(await app.ctx.guestVpn.provision(guestA.id, guestA.revision, null));
+        value(await provisionWithPreview(app.ctx.guestVpn, guestA.id, guestA.revision));
         expect(state(app, guestA.id)).toMatchObject({
           state: "provisioning",
           phase: "awaiting_device",
@@ -182,7 +193,7 @@ describe.for(testedVersions())("guest network lifecycle on Headscale %s", (versi
         );
         expect(await nodeA.canConnectUdp(destination, 5354)).toBe(false);
         // A stale or cross-guest Auth ID never registers a second device.
-        value(await app.ctx.guestVpn.provision(guestB.id, guestB.revision, null));
+        value(await provisionWithPreview(app.ctx.guestVpn, guestB.id, guestB.revision));
         expect(await app.ctx.guestVpn.register(guestB.portal!, authA)).toMatchObject({
           ok: false,
           error: { code: "auth_consumed" },

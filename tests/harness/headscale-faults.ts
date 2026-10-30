@@ -8,6 +8,7 @@ import type { Tailnet } from "./tailnet";
 // a Headscale endpoint or fabricates a successful Headscale response.
 export async function headscaleFaults(tailnet: Tailnet) {
   const agent = new Agent({ ca: tailnet.server.caCert });
+  let target = tailnet.server.url;
   let unavailable = false;
   let denyUserCreate = false;
   let drop: string | null = null;
@@ -24,7 +25,7 @@ export async function headscaleFaults(tailnet: Tailnet) {
       return;
     }
     const upstream = request(
-      new URL(incoming.url!, tailnet.server.url),
+      new URL(incoming.url!, target),
       { method: incoming.method, headers: incoming.headers, agent },
       async (response) => {
         if (drop === incoming.url && incoming.method === "PUT") {
@@ -53,6 +54,9 @@ export async function headscaleFaults(tailnet: Tailnet) {
   await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
   return {
     url: `http://127.0.0.1:${(server.address() as AddressInfo).port}`,
+    useServer(server: Tailnet["server"]) {
+      target = server.url;
+    },
     unavailable(value: boolean) {
       unavailable = value;
     },

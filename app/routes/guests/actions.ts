@@ -106,13 +106,17 @@ export const editGuestAction = createAction({
   intents: {
     provision_access: {
       capability: Capabilities.write_policy,
-      fields: { revision: guestRevision },
+      fields: {
+        revision: guestRevision,
+        preview_hash: v.pipe(v.string(), v.regex(/^[0-9a-f]{64}$/)),
+      },
       async handler(input, { vpn, id, principal, request, context }) {
         requireResourceOrigin(request, context);
         const result = await vpn.provision(
           id,
           input.revision,
           isUserPrincipal(principal) ? principal.user.id : null,
+          input.preview_hash,
         );
         if (!result.ok) throw new ActionError(result.error.message, 409);
         return ok(
