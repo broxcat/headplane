@@ -71,3 +71,20 @@ Download assets from the public URL and verify SHA256SUMS. Record the final tag
 commit, run URL, release URL and downloaded checksum. Local candidate hashes can
 differ from the final build if integration changes the commit metadata; only compare
 rebuilds of the exact same source commit with the same pinned tools.
+
+## Documentation workflows on forks
+
+Docs (beta) still installs dependencies and compiles the documentation on every
+push to main. Build failures fail the workflow. Only its Cloudflare Pages step is
+restricted to tale/headplane; forks need no Cloudflare credentials.
+
+Docs (release build) builds stable release-line documentation, attaches it to the
+release and dispatches Docs (publish). Guest tags do not dispatch this chain.
+Docs (publish) still assembles the site and supports the dry-run artifact; its
+Cloudflare step requires tale/headplane and a non-dry-run invocation. Forks never
+deploy to the official Pages projects through either workflow. Repository read
+permissions, upstream secret references and build/deployment ordering are unchanged.
+
+Before publishing a Guest tag, verify the main Build and Docs (beta) runs succeed
+and the beta Cloudflare step is skipped on the fork. Do not suppress build failures
+or supply official-site credentials to make a fork's checks pass.
