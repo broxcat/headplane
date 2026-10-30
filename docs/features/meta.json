@@ -3,6 +3,7 @@
     "users-roles",
     "guest-management",
     "guest-invitations",
+    "guest-resources",
     "sso",
     "proxy-auth",
     "acls",

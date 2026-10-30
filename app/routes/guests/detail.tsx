@@ -7,7 +7,13 @@ import Link from "~/components/link";
 import PageError from "~/components/page-error";
 import PageHeader from "~/components/page-header";
 import Section, { SettingList } from "~/components/section";
-import { authContext, guestsContext, invitationsContext } from "~/server/context";
+import {
+  authContext,
+  guestsContext,
+  invitationsContext,
+  guestResourcesContext,
+} from "~/server/context";
+import { previewGuestAcl } from "~/server/guest-acl-preview";
 import { Capabilities } from "~/server/web/roles";
 import { accessDurationLabel } from "~/utils/guest-access";
 import { toastClientAction } from "~/utils/toast";
@@ -16,13 +22,28 @@ import type { Route } from "./+types/detail";
 import { editGuestAction, guestData, invitationData, parseGuestId } from "./actions";
 import { guestDate } from "./format";
 import GuestDialog from "./guest-dialog";
+import ResourceDetails from "./resource-details";
+import { loadResourceCatalog, loadPreviewPolicy } from "./resources.server";
 
 export async function loader({ request, context, params }: Route.LoaderArgs) {
   await context.get(authContext).requireCapability(request, Capabilities.manage_guests);
   const invitations = context.get(invitationsContext);
   const id = parseGuestId(params.id);
   const history = invitationData(invitations.get(id));
+  const [catalog, policy] = await Promise.all([
+    loadResourceCatalog(request, context),
+    loadPreviewPolicy(request, context),
+  ]);
+  const resources = guestData(context.get(guestResourcesContext).list(id));
   return {
+    catalog,
+    resources,
+    preview: previewGuestAcl({
+      resources,
+      nodes: catalog.nodes,
+      catalogError: catalog.error,
+      ...policy,
+    }),
     guest: guestData(context.get(guestsContext).get(id)),
     ...history,
     invitationEnabled: invitations.enabled,
@@ -34,7 +55,16 @@ export const action = editGuestAction;
 export const clientAction = toastClientAction;
 
 export default function Page({
-  loaderData: { guest, invitation, events, invitationEnabled, maxValidityHours },
+  loaderData: {
+    guest,
+    invitation,
+    events,
+    invitationEnabled,
+    maxValidityHours,
+    catalog,
+    resources,
+    preview,
+  },
 }: Route.ComponentProps) {
   const state = invitation?.status ?? guest.status;
   const sendable = guest.status === "draft" && !["accepted", "revoked"].includes(state);
@@ -50,7 +80,7 @@ export default function Page({
           guest.status === "draft" &&
           state !== "accepted" && (
             <>
-              {!invitation && <GuestDialog key={guest.revision} guest={guest} />}
+              {!invitation && <GuestDialog key={guest.revision} guest={guest} catalog={catalog} />}
               {sendable && (
                 <ActionDialog
                   title={invitation ? "Resend invitation?" : "Send invitation?"}
@@ -186,6 +216,7 @@ export default function Page({
           then.
         </Callout>
       )}
+      <ResourceDetails guest={guest} resources={resources} catalog={catalog} preview={preview} />
       <Section
         title="Access"
         description="Planning only. Saving a draft starts no access countdown."
@@ -198,10 +229,7 @@ export default function Page({
           )}
           <Attribute name="Activated at" value="Not provisioned" />
           <Attribute name="Effective access expires at" value="Not provisioned" />
-          <Attribute
-            name="Resources"
-            value="0 — resource selection is planned for a future phase"
-          />
+          <Attribute name="Resources" value={`${resources.length} requested resource(s)`} />
         </SettingList>
       </Section>
     </>

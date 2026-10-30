@@ -10,6 +10,7 @@ import { createDbClient } from "./db/client.server";
 import { disabled, enabled, type Feature } from "./feature";
 import { createInvitationService } from "./guest-invitations";
 import { createGuestMailer, invitationPublicUrl } from "./guest-mail";
+import { createGuestResourceService } from "./guest-resources";
 import { createGuestService } from "./guests";
 import { createHeadscale, type HeadscaleClient } from "./headscale/api";
 import { loadHeadscaleConfig } from "./headscale/config-loader";
@@ -24,6 +25,7 @@ export const appConfigContext = createContext<AppContext["config"]>();
 export const authContext = createContext<AppContext["auth"]>();
 export const dbContext = createContext<AppContext["db"]>();
 export const guestMailerContext = createContext<AppContext["mailer"]>();
+export const guestResourcesContext = createContext<AppContext["guestResources"]>();
 export const guestsContext = createContext<AppContext["guests"]>();
 export const invitationsContext = createContext<AppContext["invitations"]>();
 export const headscaleContext = createContext<AppContext["headscale"]>();
@@ -37,6 +39,7 @@ export const requestApiContext = createContext<AppContext["apiForRequest"]>();
 export async function createAppContext(config: HeadplaneConfig) {
   const db = await createDbClient(join(config.server.data_path, "hp_persist.db"));
   const guests = createGuestService(db);
+  const guestResources = createGuestResourceService(db);
   const mailer = await createGuestMailer(config);
   const invitations = createInvitationService({
     db,
@@ -139,6 +142,7 @@ export async function createAppContext(config: HeadplaneConfig) {
     db,
     headscale,
     guests,
+    guestResources,
     mailer,
     invitations,
     headscaleApiKey,
@@ -161,6 +165,7 @@ export function createRouterContext(ctx: AppContext) {
   context.set(authContext, ctx.auth);
   context.set(dbContext, ctx.db);
   context.set(guestsContext, ctx.guests);
+  context.set(guestResourcesContext, ctx.guestResources);
   context.set(guestMailerContext, ctx.mailer);
   context.set(invitationsContext, ctx.invitations);
   context.set(headscaleContext, ctx.headscale);

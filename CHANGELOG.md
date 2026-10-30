@@ -1,6 +1,12 @@
 # Next
 
+## Upgrading
+
+- Back up SQLite before upgrading. The additive Guest resources migration creates a new intentions table; retain it and migration history when rolling back the application. No Headscale policy is changed.
+
 ## Changes
+
+- Guests can request explicit TCP/UDP ports on Headscale machines or declared private LAN services behind announced and approved routes. A read-only ACL preview highlights permissive policies, stale machines and unresolved isolation; it never provisions VPN access.
 
 # 0.8.1-guest (October 30, 2026)
 

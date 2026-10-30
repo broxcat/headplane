@@ -1,5 +1,5 @@
 import { sql } from "drizzle-orm";
-import { check, index, integer, sqliteTable, text } from "drizzle-orm/sqlite-core";
+import { check, index, integer, sqliteTable, text, uniqueIndex } from "drizzle-orm/sqlite-core";
 
 import { HostInfo } from "~/types";
 
@@ -89,6 +89,42 @@ export const guests = sqliteTable(
 );
 
 export type Guest = typeof guests.$inferSelect;
+
+// No provisioning state or credential: these rows describe intentions only.
+export const guestResources = sqliteTable(
+  "guest_resources",
+  {
+    id: text("id").primaryKey(),
+    guest_id: text("guest_id")
+      .notNull()
+      .references(() => guests.id),
+    kind: text("kind", { enum: ["node", "lan"] }).notNull(),
+    node_id: text("node_id").notNull(),
+    address: text("address").notNull(),
+    route: text("route"),
+    protocol: text("protocol", { enum: ["tcp", "udp"] }).notNull(),
+    ports: text("ports").notNull(),
+    created_at: integer("created_at", { mode: "timestamp" }).notNull(),
+    updated_at: integer("updated_at", { mode: "timestamp" }).notNull(),
+    revision: integer("revision").notNull().default(1),
+  },
+  (t) => [
+    index("guest_resources_guest_idx").on(t.guest_id),
+    uniqueIndex("guest_resources_target_idx").on(t.guest_id, t.address, t.protocol),
+    check("guest_resources_kind", sql`${t.kind} IN ('node','lan')`),
+    check("guest_resources_protocol", sql`${t.protocol} IN ('tcp','udp')`),
+    check(
+      "guest_resources_route",
+      sql`(${t.kind} = 'node' AND ${t.route} IS NULL) OR (${t.kind} = 'lan' AND ${t.route} IS NOT NULL)`,
+    ),
+    check(
+      "guest_resources_ports",
+      sql`length(${t.ports}) BETWEEN 1 AND 512 AND ${t.ports} NOT GLOB '*[^0-9,-]*'`,
+    ),
+    check("guest_resources_revision", sql`${t.revision} >= 1`),
+  ],
+);
+export type GuestResource = typeof guestResources.$inferSelect;
 
 export const guestInvitations = sqliteTable(
   "guest_invitations",

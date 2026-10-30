@@ -9,10 +9,18 @@ import Select from "~/components/select";
 import type { Guest } from "~/server/db/schema";
 import { fieldValidator } from "~/utils/form";
 import { localDateTime, validateAccessDate } from "~/utils/guest-access";
+import type { ResourceCatalog } from "~/utils/guest-resources";
 
+import ResourceEditor from "./resource-editor";
 import { durationItems, guestFields } from "./schemas";
 
-export default function GuestDialog({ guest }: { guest?: Guest }) {
+export default function GuestDialog({
+  guest,
+  catalog,
+}: {
+  guest?: Guest;
+  catalog: ResourceCatalog;
+}) {
   const [duration, setDuration] = useState<string | null>(
     guest?.requested_expires_at ? "custom" : String(guest?.requested_duration_seconds ?? "43200"),
   );
@@ -75,6 +83,7 @@ export default function GuestDialog({ guest }: { guest?: Guest }) {
           defaultValue={guest?.notes ?? ""}
         />
       </Field>
+      {!guest && <ResourceEditor catalog={catalog} />}
       <Select
         label="Access duration"
         name="duration"

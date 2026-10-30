@@ -1,15 +1,24 @@
 import { data } from "react-router";
 import * as v from "valibot";
 
-import { authContext, guestsContext, invitationsContext } from "~/server/context";
+import {
+  authContext,
+  guestsContext,
+  invitationsContext,
+  guestResourcesContext,
+} from "~/server/context";
 import type { InvitationResult } from "~/server/guest-invitations";
+import { validateResources } from "~/server/guest-resources";
 import type { GuestResult } from "~/server/guests";
 import { ActionError, createAction } from "~/server/web/actions";
 import { isUserPrincipal } from "~/server/web/auth";
 import { Capabilities } from "~/server/web/roles";
 import { invalid, ok } from "~/utils/form";
 
+import { loadResourceCatalog, requireResourceOrigin } from "./resources.server";
 import { guestFields, guestId, guestRevision } from "./schemas";
+
+const resourcesField = v.pipe(v.string(), v.maxLength(24000));
 
 const status = { validation: 400, not_found: 404, conflict: 409, database: 503 } as const;
 
@@ -51,12 +60,25 @@ export const createGuestAction = createAction({
     return {
       principal: await context.get(authContext).require(request),
       guests: context.get(guestsContext),
+      resources: context.get(guestResourcesContext),
+      request,
+      context,
     };
   },
   intents: {
     create: {
-      fields: guestFields,
-      async handler(input, { guests, principal }) {
+      fields: { ...guestFields, resources: v.optional(resourcesField, "[]") },
+      async handler(input, { guests, principal, request, context }) {
+        if (input.resources !== "[]") {
+          requireResourceOrigin(request, context);
+          const catalog = await loadResourceCatalog(request, context);
+          if (catalog.error) throw new ActionError(catalog.error, 503);
+          const selected = validateResources(input.resources, catalog.nodes);
+          return saved(
+            guests.create(input, isUserPrincipal(principal) ? principal.user.id : null, selected),
+            "Guest draft and resource intentions created",
+          );
+        }
         return saved(
           guests.create(input, isUserPrincipal(principal) ? principal.user.id : null),
           "Guest draft created",
@@ -72,11 +94,26 @@ export const editGuestAction = createAction({
     return {
       principal: await context.get(authContext).require(request),
       guests: context.get(guestsContext),
+      resources: context.get(guestResourcesContext),
+      request,
+      context,
       id: params.id ?? "",
       invitations: context.get(invitationsContext),
     };
   },
   intents: {
+    save_resources: {
+      fields: { revision: guestRevision, resources: resourcesField },
+      async handler(input, { resources, id, request, context }) {
+        requireResourceOrigin(request, context);
+        const catalog = await loadResourceCatalog(request, context);
+        if (catalog.error) throw new ActionError(catalog.error, 503);
+        return saved(
+          resources.save(id, input.revision, input.resources, catalog.nodes),
+          "Resource intentions saved. No ACL or VPN access was changed.",
+        );
+      },
+    },
     update: {
       fields: { ...guestFields, revision: guestRevision },
       async handler(input, { guests, id }) {
