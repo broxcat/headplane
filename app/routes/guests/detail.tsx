@@ -9,13 +9,13 @@ import PageHeader from "~/components/page-header";
 import Section, { SettingList } from "~/components/section";
 import { authContext, guestsContext, invitationsContext } from "~/server/context";
 import { Capabilities } from "~/server/web/roles";
+import { accessDurationLabel } from "~/utils/guest-access";
 import { toastClientAction } from "~/utils/toast";
 
 import type { Route } from "./+types/detail";
 import { editGuestAction, guestData, invitationData, parseGuestId } from "./actions";
 import { guestDate } from "./format";
 import GuestDialog from "./guest-dialog";
-import { durationItems } from "./schemas";
 
 export async function loader({ request, context, params }: Route.LoaderArgs) {
   await context.get(authContext).requireCapability(request, Capabilities.manage_guests);
@@ -119,16 +119,16 @@ export default function Page({
         description="Administrative information stored only in Headplane."
       >
         <SettingList>
-          <Attribute name="Status" value={state[0].toUpperCase() + state.slice(1)} />
+          <Attribute name="Invitation status" value={state[0].toUpperCase() + state.slice(1)} />
           <Attribute name="Display name" value={guest.display_name ?? "—"} />
           <Attribute name="Email" value={guest.email} />
-          <Attribute name="Created" value={guestDate(guest.created_at)} />
+          <Attribute name="Created at" value={guestDate(guest.created_at)} />
           <Attribute name="Modified" value={guestDate(guest.updated_at)} />
           <Attribute
             name="Created by"
             value={guest.created_by ?? "API key session (no local account)"}
           />
-          {guest.revoked_at && <Attribute name="Revoked" value={guestDate(guest.revoked_at)} />}
+          {guest.revoked_at && <Attribute name="Revoked at" value={guestDate(guest.revoked_at)} />}
         </SettingList>
       </Section>
       {invitation && (
@@ -138,12 +138,12 @@ export default function Page({
         >
           <SettingList>
             <Attribute name="Issued" value={guestDate(invitation.issued_at)} />
-            <Attribute name="Invitation expires" value={guestDate(invitation.expires_at)} />
+            <Attribute name="Invitation expires at" value={guestDate(invitation.expires_at)} />
             <Attribute name="Last sent" value={guestDate(invitation.last_sent_at)} />
             <Attribute name="Successful sends" value={String(invitation.send_count)} />
             <Attribute name="Delivery" value={invitation.delivery_state} />
-            <Attribute name="Accepted" value={guestDate(invitation.accepted_at)} />
-            <Attribute name="Revoked" value={guestDate(invitation.revoked_at)} />
+            <Attribute name="Accepted at" value={guestDate(invitation.accepted_at)} />
+            <Attribute name="Revoked at" value={guestDate(invitation.revoked_at)} />
           </SettingList>
           {invitation.delivery_state === "failed" && (
             <Callout className="mt-4" variant="error">
@@ -153,6 +153,10 @@ export default function Page({
           )}
         </Section>
       )}
+      <p className="text-muted mb-6 text-sm">
+        Guest records are retained for audit after invitation expiry or revocation. No automatic
+        deletion or VPN access revocation is performed.
+      </p>
       {events.length > 0 && (
         <Section
           title="Invitation history"
@@ -175,22 +179,25 @@ export default function Page({
       <Section title="Administrative notes">
         <p className="text-sm break-words whitespace-pre-wrap">{guest.notes ?? "No notes."}</p>
       </Section>
+      {guest.requested_expires_at && guest.requested_duration_seconds && (
+        <Callout className="mb-4">
+          This legacy record includes both a duration and a deadline. The absolute deadline takes
+          precedence. Edit the draft to choose one intention; historical data is retained until
+          then.
+        </Callout>
+      )}
       <Section
-        title="Requested access"
+        title="Access"
         description="Planning only. Saving a draft starts no access countdown."
       >
         <SettingList>
-          <Attribute
-            name="Duration"
-            value={
-              durationItems.find(
-                (item) => item.value === String(guest.requested_duration_seconds ?? "custom"),
-              )?.label ?? "—"
-            }
-          />
-          <Attribute name="Planned expiry" value={guestDate(guest.requested_expires_at)} />
-          <Attribute name="Activated" value="Not provisioned" />
-          <Attribute name="Effective expiry" value="Not provisioned" />
+          <Attribute name="Access status" value="VPN access not provisioned" />
+          <Attribute name="Access duration" value={accessDurationLabel(guest)} />
+          {guest.requested_expires_at && (
+            <Attribute name="Access expires at" value={guestDate(guest.requested_expires_at)} />
+          )}
+          <Attribute name="Activated at" value="Not provisioned" />
+          <Attribute name="Effective access expires at" value="Not provisioned" />
           <Attribute
             name="Resources"
             value="0 — resource selection is planned for a future phase"

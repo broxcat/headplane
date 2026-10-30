@@ -92,3 +92,20 @@ test.for(["temporary", "permanent"] as const)(
     expect(smtp.attempts()).toBe(reject === "temporary" ? 2 : 1);
   },
 );
+
+test.for(["tls", "starttls"] as const)(
+  "connection check negotiates %s and authenticates without sending",
+  async (security) => {
+    await using smtp = await startTestSmtp({ security });
+    const mailer = await createGuestMailer(await config(smtp.port, smtp.caPath, security));
+    expect(await mailer.check()).toEqual({ ok: true, value: "smtp" });
+    expect(smtp.messages).toEqual([]);
+    expect(smtp.attempts()).toBe(0);
+    expect(await mailer.check()).toEqual({ ok: false, error: "rate_limited" });
+    const invalid = await createGuestMailer(
+      await config(smtp.port, smtp.caPath, security, "wrong"),
+    );
+    expect(await invalid.check()).toEqual({ ok: false, error: "delivery_failed" });
+    expect(smtp.messages).toEqual([]);
+  },
+);

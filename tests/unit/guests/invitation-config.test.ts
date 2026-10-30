@@ -130,3 +130,50 @@ test("enabled delivery rejects insecure public origins, credentials in URLs, hea
     ),
   ).rejects.toThrow("both credentials");
 });
+
+// Regression: mail renders an invitation deadline as an access countdown, or
+// drops a historical absolute deadline when preparing delivery.
+test("email separates link expiry, relative access duration, absolute access deadline and retention", () => {
+  const linkExpiry = new Date("2030-01-02T12:00Z");
+  const relative = invitationMail(
+    "recipient@example.test",
+    "<Guest>",
+    "<Service>",
+    linkExpiry,
+    "https://example.test/invite",
+    { requested_duration_seconds: 43200, requested_expires_at: null },
+  );
+  expect(relative.text).toContain("12 hours");
+  expect(relative.text).toContain("Invitation link expires at 2030-01-02T12:00:00.000Z");
+  expect(relative.text).toContain(
+    "countdown starts only when VPN permissions are actually activated",
+  );
+  expect(relative.text).toContain("retained for audit");
+  expect(relative.html).toContain("&lt;Guest&gt;");
+  expect(relative.html).toContain("recipient@example.test");
+  expect(relative.html).not.toContain("<Guest>");
+  const absolute = invitationMail(
+    "recipient@example.test",
+    "Guest",
+    "Headplane",
+    linkExpiry,
+    "https://example.test/invite",
+    { requested_duration_seconds: null, requested_expires_at: new Date("2030-02-01T10:00Z") },
+  );
+  expect(absolute.text).toContain("Access expires at 2030-02-01T10:00:00.000Z");
+  expect(absolute.text).toContain("access must not be activated");
+});
+
+test("file connectivity check creates no message and disabled check does nothing", async () => {
+  const disabled = await createGuestMailer(parsed({}));
+  expect(await disabled.check()).toEqual({ ok: false, error: "disabled" });
+  const dir = await tempDir();
+  const mailer = await createGuestMailer(
+    parsed({
+      server: { cookie_secret: "s".repeat(32), data_path: dir, base_url: "https://headplane.test" },
+      guest_invitations: { enabled: true, transport: "file" },
+    }),
+  );
+  expect(await mailer.check()).toEqual({ ok: true, value: "file" });
+  expect(await readdir(join(dir, "guest-mail"))).toEqual([]);
+});

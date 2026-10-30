@@ -5,6 +5,7 @@ import * as v from "valibot";
 
 import { guestFields, type GuestQuery } from "~/routes/guests/schemas";
 import { parseValues, type FormErrors } from "~/utils/form";
+import { validateAccessDate } from "~/utils/guest-access";
 import log from "~/utils/log";
 
 import { guests, guestInvitations, type Guest } from "./db/schema";
@@ -40,7 +41,7 @@ export function createGuestService(db: NodeSQLiteDatabase) {
     });
   }
 
-  function values(input: unknown, existing?: Guest) {
+  function values(input: unknown) {
     const parsed = parseValues(v.object(guestFields), input);
     if (!parsed.ok) {
       return err<GuestError>({
@@ -51,23 +52,24 @@ export function createGuestService(db: NodeSQLiteDatabase) {
     }
 
     const data = parsed.data;
-    const date = data.requested_expires_at ? new Date(`${data.requested_expires_at}Z`) : null;
-    if (data.duration === "custom" && !date) {
+    let date: Date | null = null;
+    if (data.duration === "custom") {
+      const converted = validateAccessDate(data.requested_expires_at, data.time_zone);
+      if ("error" in converted) {
+        return err<GuestError>({
+          code: "validation",
+          message: converted.error,
+          fields: { requested_expires_at: converted.error },
+        });
+      }
+      date = converted.date;
+    } else if (data.requested_expires_at) {
       return err<GuestError>({
         code: "validation",
-        message: "Choose a planned expiry for a custom duration.",
-        fields: { requested_expires_at: "Choose a planned expiry for a custom duration." },
-      });
-    }
-    if (
-      date &&
-      date.getTime() <= Date.now() &&
-      date.getTime() !== existing?.requested_expires_at?.getTime()
-    ) {
-      return err<GuestError>({
-        code: "validation",
-        message: "Choose a planned expiry in the future.",
-        fields: { requested_expires_at: "Choose a planned expiry in the future." },
+        message: "Choose either a relative duration or a custom date.",
+        fields: {
+          requested_expires_at: "A relative duration cannot also have an absolute expiry.",
+        },
       });
     }
 
@@ -126,7 +128,7 @@ export function createGuestService(db: NodeSQLiteDatabase) {
         message: "This guest changed or was revoked. Reload before making changes.",
       });
     }
-    const parsed = input === undefined ? ok({}) : values(input, current.value);
+    const parsed = input === undefined ? ok({}) : values(input);
     if (!parsed.ok) return parsed;
 
     return database(() => {

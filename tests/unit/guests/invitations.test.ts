@@ -1,7 +1,7 @@
 import { drizzle } from "drizzle-orm/node-sqlite";
-import { migrate } from "drizzle-orm/node-sqlite/migrator";
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 
+import { migrate } from "~/server/db/migrate";
 import {
   guestInvitations,
   guestInvitationEvents,
@@ -104,6 +104,46 @@ describe("secure administrative guest invitations", () => {
       error: { code: "conflict" },
     });
   });
+
+  test.for(["43200", "custom"])(
+    "link validity and retention remain independent of the %s access plan",
+    async (duration) => {
+      const draft = value(
+        guestService.create(
+          {
+            email: "plan@example.test",
+            duration,
+            ...(duration === "custom"
+              ? { requested_expires_at: "2030-01-01T14:00", time_zone: "UTC" }
+              : {}),
+          },
+          null,
+        ),
+      );
+      value(await invitations.send(draft.id, 1, 24, null));
+      const token = latestToken();
+      expect(messages[0].text).toContain(
+        duration === "custom"
+          ? "Access expires at 2030-01-01T14:00:00.000Z"
+          : "Planned access duration: 12 hours",
+      );
+      vi.advanceTimersByTime(13 * 3600_000);
+      value(invitations.expire());
+      expect(value(invitations.get(draft.id)).invitation?.status).toBe("pending");
+      expect(value(guestService.get(draft.id))).toMatchObject({
+        activated_at: null,
+        expires_at: null,
+        status: "draft",
+      });
+      value(invitations.revoke(draft.id, revision(draft.id), null));
+      expect(invitations.exchange(token).ok).toBe(false);
+      expect(value(invitations.get(draft.id)).invitation?.status).toBe("revoked");
+      expect(value(guestService.get(draft.id))).toMatchObject({
+        activated_at: null,
+        expires_at: null,
+      });
+    },
+  );
 
   test("possession of a link alone cannot accept and mailbox verification consumes an invitation exactly once", async () => {
     const draft = guest();

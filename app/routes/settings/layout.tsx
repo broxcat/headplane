@@ -2,15 +2,18 @@ import { NavLink, Outlet } from "react-router";
 
 import PageHeader from "~/components/page-header";
 import { authContext, headscaleConfigContext } from "~/server/context";
+import { Capabilities } from "~/server/web/roles";
 import cn from "~/utils/cn";
 
 import type { Route } from "./+types/layout";
 
 export async function loader({ request, context }: Route.LoaderArgs) {
-  await context.get(authContext).require(request);
+  const auth = context.get(authContext);
+  const principal = await auth.require(request);
   const headscaleConfig = context.get(headscaleConfigContext);
 
   return {
+    canManageGuests: auth.can(principal, Capabilities.manage_guests),
     hasRestrictions: headscaleConfig.writable() && headscaleConfig.hasOIDCConfig(),
   };
 }
@@ -22,6 +25,7 @@ export default function Layout({ loaderData }: Route.ComponentProps) {
       ? [{ to: "/settings/restrictions", label: "Sign-in restrictions" }]
       : []),
     { to: "/settings/agent", label: "Agent" },
+    ...(loaderData.canManageGuests ? [{ to: "/settings/guest-email", label: "Guest email" }] : []),
   ];
 
   return (

@@ -322,6 +322,8 @@ integration:
 #     prompt: "select_account" # Example: force account selection on Google
 
 # Optional administrative guest invitations. This grants no VPN access.
+# Settings > Guest email can check TLS/authentication without sending a message.
+# Keep file transport for testing; enable real SMTP delivery only after approval.
 # See https://headplane.net/features/guest-invitations for the complete setup.
 # Set server.base_url to the public HTTPS origin and keep cookie_secure enabled.
 # guest_invitations:

@@ -23,6 +23,7 @@ export const agentsContext = createContext<AppContext["agents"]>();
 export const appConfigContext = createContext<AppContext["config"]>();
 export const authContext = createContext<AppContext["auth"]>();
 export const dbContext = createContext<AppContext["db"]>();
+export const guestMailerContext = createContext<AppContext["mailer"]>();
 export const guestsContext = createContext<AppContext["guests"]>();
 export const invitationsContext = createContext<AppContext["invitations"]>();
 export const headscaleContext = createContext<AppContext["headscale"]>();
@@ -138,6 +139,7 @@ export async function createAppContext(config: HeadplaneConfig) {
     db,
     headscale,
     guests,
+    mailer,
     invitations,
     headscaleApiKey,
     agents,
@@ -159,6 +161,7 @@ export function createRouterContext(ctx: AppContext) {
   context.set(authContext, ctx.auth);
   context.set(dbContext, ctx.db);
   context.set(guestsContext, ctx.guests);
+  context.set(guestMailerContext, ctx.mailer);
   context.set(invitationsContext, ctx.invitations);
   context.set(headscaleContext, ctx.headscale);
   context.set(headscaleApiKeyContext, ctx.headscaleApiKey);

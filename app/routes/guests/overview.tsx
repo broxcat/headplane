@@ -11,6 +11,7 @@ import { Table, TableBody, TableCell, TableHeader } from "~/components/table";
 import { authContext, guestsContext, invitationsContext } from "~/server/context";
 import { Capabilities } from "~/server/web/roles";
 import { parseValues } from "~/utils/form";
+import { accessDurationLabel } from "~/utils/guest-access";
 import { toastClientAction } from "~/utils/toast";
 
 import type { Route } from "./+types/overview";
@@ -47,7 +48,14 @@ export default function Page({ loaderData }: Route.ComponentProps) {
       <PageHeader
         title="Guests"
         description="Prepare guests and manage email invitations. Acceptance does not activate VPN access."
-        actions={<GuestDialog />}
+        actions={
+          <>
+            <Link styled to="/settings/guest-email">
+              Guest email settings
+            </Link>
+            <GuestDialog />
+          </>
+        }
       />
       {queryError && (
         <Callout className="mb-4" variant="error">
@@ -131,9 +139,10 @@ export default function Page({ loaderData }: Route.ComponentProps) {
                 {[
                   "Name",
                   "Email",
-                  "Status",
+                  "Invitation status",
                   "Created",
-                  "Planned expiry",
+                  "Access duration",
+                  "Access expires at",
                   "Invitation expires",
                   "Last sent",
                   "Resources",
@@ -174,6 +183,7 @@ export default function Page({ loaderData }: Route.ComponentProps) {
                     />
                   </TableCell>
                   <TableCell className="whitespace-nowrap">{guestDate(guest.created_at)}</TableCell>
+                  <TableCell className="whitespace-nowrap">{accessDurationLabel(guest)}</TableCell>
                   <TableCell className="whitespace-nowrap">
                     {guestDate(guest.requested_expires_at)}
                   </TableCell>

@@ -5,6 +5,8 @@ import { join } from "node:path";
 import { chromium, type Browser } from "playwright";
 import { expect, test } from "vitest";
 
+import { localDateTime } from "~/utils/guest-access";
+
 import { startHeadplane, writeHeadplaneConfig } from "../../harness/headplane";
 import { freePort } from "../../harness/headscale";
 import { createTailnet } from "../../harness/tailnet";
@@ -21,7 +23,8 @@ test.runIf(process.env.HP_GUEST_BROWSER === "1")(
     const base = `http://127.0.0.1:${port}/console`;
     const config = await writeHeadplaneConfig(tailnet, {
       port,
-      server: { base_path: "/console" },
+      server: { base_path: "/console", base_url: `http://127.0.0.1:${port}` },
+      guestInvitations: { enabled: true, transport: "file" },
       integration: { docker: { enabled: false } },
     });
     const server = startHeadplane(config, port, { isProduction: true });
@@ -54,6 +57,8 @@ test.runIf(process.env.HP_GUEST_BROWSER === "1")(
       expect(refused.status()).toBeGreaterThanOrEqual(400);
 
       await page.getByRole("button", { name: "Add Guest", exact: true }).click();
+      expect(await page.getByLabel("Date", { exact: true }).count()).toBe(0);
+      expect(await page.getByLabel("Time", { exact: true }).count()).toBe(0);
       await page.getByLabel("Email", { exact: true }).fill("alex@example.com");
       await page.getByLabel("Display name", { exact: true }).fill("Alex Morgan");
       await page
@@ -84,19 +89,71 @@ test.runIf(process.env.HP_GUEST_BROWSER === "1")(
       expect(new Set(backgrounds).size).toBe(2);
 
       await page.getByRole("link", { name: "Alex Morgan", exact: true }).click();
+      await page.getByText("12 hours", { exact: true }).waitFor();
+      await page.getByText("VPN access not provisioned", { exact: true }).waitFor();
+      expect(
+        await page.getByRole("button", { name: "Revoke Access Now", exact: true }).count(),
+      ).toBe(0);
       await page.getByRole("button", { name: "Edit draft", exact: true }).click();
       await page.getByLabel("Display name", { exact: true }).fill("Alex Morgan — vendor");
-      const duration = page.getByRole("combobox", { name: "Requested access duration" });
+      const duration = page.getByRole("combobox", { name: "Access duration" });
       await duration.fill("Custom");
       await page.getByRole("option", { name: "Custom date", exact: true }).click();
       const plannedExpiry = new Date(Date.now() + 7 * 86400_000).toISOString().slice(0, 16);
-      await page.getByLabel("Planned expiry (UTC)", { exact: true }).fill(plannedExpiry);
+      await page.getByText(/Time zone: Europe\/Paris/).waitFor();
+      // The UTC-looking string is intentionally entered as local wall time.
+      await page.getByLabel("Date", { exact: true }).fill(plannedExpiry.slice(0, 10));
+      await page.getByLabel("Time", { exact: true }).fill(plannedExpiry.slice(11, 16));
+      const localUtc = await page.evaluate(
+        (value) => new Date(value).toISOString().slice(0, 16),
+        plannedExpiry,
+      );
+      if (screenshots)
+        await page.screenshot({
+          animations: "disabled",
+          path: join(screenshots, "access-duration-custom.png"),
+          fullPage: true,
+        });
       await page.getByRole("button", { name: "Save changes", exact: true }).click();
       await page
         .getByRole("dialog", { name: "Edit guest draft", exact: true })
         .waitFor({ state: "hidden" });
-      await page.getByText(`${plannedExpiry.replace("T", " ")} UTC`, { exact: true }).waitFor();
+      await page.getByText(`${localUtc.replace("T", " ")} UTC`, { exact: true }).waitFor();
       await page.getByRole("heading", { name: "Alex Morgan — vendor", exact: true }).waitFor();
+      // A different browser zone must display the same stored instant locally.
+      const otherContext = await browser.newContext({
+        timezoneId: "America/New_York",
+        viewport: { width: 390, height: 844 },
+        colorScheme: "dark",
+        storageState: await page.context().storageState(),
+      });
+      const otherPage = await otherContext.newPage();
+      await otherPage.goto(page.url());
+      await otherPage.getByRole("button", { name: "Edit draft", exact: true }).click();
+      const otherLocal = localDateTime(new Date(`${localUtc}Z`), "America/New_York");
+      expect(await otherPage.getByLabel("Date", { exact: true }).inputValue()).toBe(
+        otherLocal.slice(0, 10),
+      );
+      expect(await otherPage.getByLabel("Time", { exact: true }).inputValue()).toBe(
+        otherLocal.slice(11, 16),
+      );
+      if (screenshots)
+        await otherPage.screenshot({
+          animations: "disabled",
+          path: join(screenshots, "access-duration-custom-mobile.png"),
+          fullPage: true,
+        });
+      await otherPage.getByRole("combobox", { name: "Access duration", exact: true }).fill("48");
+      await otherPage.getByRole("option", { name: "48 hours", exact: true }).click();
+      expect(await otherPage.getByLabel("Date", { exact: true }).count()).toBe(0);
+      await otherPage.getByRole("button", { name: "Save changes", exact: true }).click();
+      await otherPage
+        .getByRole("dialog", { name: "Edit guest draft", exact: true })
+        .waitFor({ state: "hidden" });
+      await otherPage.getByText("48 hours", { exact: true }).waitFor();
+      expect(await otherPage.getByText("Access expires at", { exact: true }).count()).toBe(0);
+      await otherContext.close();
+      await page.reload();
       await page.getByRole("button", { name: "Revoke draft", exact: true }).click();
       await page
         .getByRole("alertdialog")
@@ -129,6 +186,26 @@ test.runIf(process.env.HP_GUEST_BROWSER === "1")(
         viewport: window.innerWidth,
       }));
       expect(dimensions.scrollWidth).toBeLessThanOrEqual(dimensions.viewport);
+      await page.goto(`${base}/settings/guest-email`);
+      await page
+        .getByText(
+          "Development file transport: messages stay on this server. No external email is sent.",
+          { exact: true },
+        )
+        .waitFor();
+      const crossSite = await page.request.post(`${base}/settings/guest-email`, {
+        headers: { Origin: "https://unrelated.example" },
+        form: { intent: "check_connection" },
+      });
+      expect(crossSite.status()).toBeGreaterThanOrEqual(400);
+      await page.getByRole("button", { name: "Check connection", exact: true }).click();
+      await page
+        .getByRole("dialog", { name: "Check email connection?", exact: true })
+        .getByRole("button", { name: "Check connection", exact: true })
+        .click();
+      await page
+        .getByRole("dialog", { name: "Check email connection?", exact: true })
+        .waitFor({ state: "hidden" });
       expect(errors).toEqual([]);
       expect(await tailnet.api.policy.get()).toEqual(policy);
     } finally {

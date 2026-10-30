@@ -1,8 +1,11 @@
-import { mkdir, readFile, writeFile } from "node:fs/promises";
+import { constants } from "node:fs";
+import { access, mkdir, readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 
 import nodemailer from "nodemailer";
 import { ulid } from "ulidx";
+
+import { accessDurationLabel, type AccessPlan } from "~/utils/guest-access";
 
 import type { HeadplaneConfig } from "./config/config-schema";
 import { ConfigError } from "./config/error";
@@ -45,9 +48,18 @@ export function invitationPublicUrl(config: HeadplaneConfig) {
   return `${url.origin}${config.server.base_path}/invite`;
 }
 
-export async function createGuestMailer(config: HeadplaneConfig): Promise<GuestMailer> {
+export interface GuestMailTransport extends GuestMailer {
+  check(): Promise<Result<"smtp" | "file", "delivery_failed" | "disabled" | "rate_limited">>;
+}
+
+export async function createGuestMailer(config: HeadplaneConfig): Promise<GuestMailTransport> {
   const options = config.guest_invitations;
-  if (!options?.enabled) return { enabled: false, send: async () => err("disabled") };
+  if (!options?.enabled)
+    return {
+      enabled: false,
+      send: async () => err("disabled"),
+      check: async () => err("disabled"),
+    };
   invitationPublicUrl(config);
   if (options.transport === "smtp" && !config.server.cookie_secure) {
     throw ConfigError.from("INVALID_REQUIRED_FIELDS", {
@@ -99,8 +111,20 @@ export async function createGuestMailer(config: HeadplaneConfig): Promise<GuestM
         disableUrlAccess: true,
       });
 
+  let checkedAt = -Infinity;
   return {
     enabled: true,
+    async check() {
+      if (Date.now() - checkedAt < 60_000) return err("rate_limited");
+      checkedAt = Date.now();
+      try {
+        if (file) await access(directory, constants.W_OK);
+        else await transport.verify();
+        return ok(file ? "file" : "smtp");
+      } catch {
+        return err("delivery_failed");
+      }
+    },
     async send(message) {
       for (let attempt = 0; attempt <= options.retries; attempt++) {
         try {
@@ -143,13 +167,21 @@ export function invitationMail(
   service: string,
   expires: Date,
   link: string,
+  accessPlan?: AccessPlan,
 ): GuestMail {
-  const text = `${service} invitation\n\nHello ${name},\nAn administrator invited you to prepare guest access.\nAccept before ${expires.toISOString()} at:\n${link}\n\nA separate verification code will be sent to this email address before acceptance. Accepting does not activate VPN or network access. Ignore this message if it was not expected.`;
+  const duration = accessPlan
+    ? accessDurationLabel(accessPlan)
+    : "To be confirmed by the administrator";
+  const accessText = accessPlan?.requested_expires_at
+    ? `Access expires at ${accessPlan.requested_expires_at.toISOString()} (absolute UTC deadline). If this deadline passes before VPN activation, access must not be activated.`
+    : "The relative access countdown starts only when VPN permissions are actually activated in a future phase.";
+  const deadline = expires.toISOString();
+  const text = `${service} invitation\n\nHello ${name},\nRecipient: ${to}\nAn administrator invited you to prepare guest access.\nInvitation link expires at ${deadline} (UTC).\nPlanned access duration: ${duration}.\n${accessText}\n\n1. Open the invitation link:\n${link}\n2. Request a separate verification code at this email address.\n3. Enter the code and explicitly accept the administrative invitation.\n\nAccepting does not activate VPN or network access. Link expiration does not delete the guest record, which is retained for audit. Ignore this message if it was not expected.`;
   return {
     to,
     subject: `${service}: guest invitation`,
     text,
-    html: `<h1>${html(service)} invitation</h1><p>Hello ${html(name)},</p><p>An administrator invited you to prepare guest access.</p><p>Accept before ${html(expires.toISOString())}.</p><p><a href="${html(link)}">Review invitation</a></p><p>A separate verification code will be sent to this email address before acceptance.</p><p><strong>Accepting does not activate VPN or network access.</strong> Ignore this message if it was not expected.</p>`,
+    html: `<main style="font-family:system-ui,sans-serif;max-width:600px;margin:auto;line-height:1.6"><h1>${html(service)} invitation</h1><p>Hello ${html(name)},</p><p>Recipient: ${html(to)}</p><p>An administrator invited you to prepare guest access.</p><dl><dt>Invitation link expires at</dt><dd>${html(deadline)} (UTC)</dd><dt>Planned access duration</dt><dd>${html(duration)}</dd></dl><p>${html(accessText)}</p><p><a href="${html(link)}">Review invitation</a></p><ol><li>Open the invitation link.</li><li>Request a separate verification code at this email address.</li><li>Enter the code and explicitly accept the administrative invitation.</li></ol><p><strong>Accepting does not activate VPN or network access.</strong></p><p>Link expiration does not delete the guest record, which is retained for audit.</p><p>Ignore this message if it was not expected.</p></main>`,
   };
 }
 
