@@ -97,6 +97,13 @@ const partialServerConfig = type({
   },
 });
 
+const approvedBuild = type({
+  version: /^\d+\.\d+\.\d+$/,
+  commit: /^[0-9a-f]{40}$/,
+  fingerprint: /^[0-9a-f]{64}$/,
+});
+const buildCompatibility = type({ approved_builds: approvedBuild.array() });
+
 const headscaleConfig = type({
   url: type("string.url").pipe((v) => (v.endsWith("/") ? v.slice(0, -1) : v)),
   public_url: type("string.url")
@@ -107,6 +114,7 @@ const headscaleConfig = type({
   config_strict: "boolean = true",
   dns_records_path: "string?",
   tls_cert_path: "string?",
+  compatibility: buildCompatibility.optional(),
 });
 
 const partialHeadscaleConfig = type({
@@ -121,6 +129,7 @@ const partialHeadscaleConfig = type({
   config_strict: "boolean?",
   dns_records_path: "string?",
   tls_cert_path: "string?",
+  compatibility: buildCompatibility.optional(),
 });
 
 const assignableRole = '"admin" | "network_admin" | "it_admin" | "auditor" | "viewer" | "member"';
@@ -289,6 +298,10 @@ export const headplaneConfig = type({
   oidc: oidcConfig.optional(),
   integration: integrationConfig.optional(),
   guest_invitations: invitationConfig.optional(),
+  "guest_vpn?": {
+    enabled: "boolean = false",
+    single_policy_writer: "boolean = false",
+  },
 }).onDeepUndeclaredKey("delete");
 
 export const partialHeadplaneConfig = type({
@@ -299,6 +312,10 @@ export const partialHeadplaneConfig = type({
   oidc: partialOidcConfig.optional(),
   integration: partialIntegrationConfig.optional(),
   guest_invitations: partialInvitationConfig.optional(),
+  "guest_vpn?": {
+    enabled: "boolean?",
+    single_policy_writer: "boolean?",
+  },
 });
 
 export type HeadplaneConfig = typeof headplaneConfig.infer;

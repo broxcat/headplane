@@ -1,6 +1,14 @@
 import * as v from "valibot";
 
-import { authContext, headscaleLiveStoreContext, requestApiContext } from "~/server/context";
+import { requireNonGuestUser } from "~/routes/guests/identity-guard.server";
+import { requireResourceOrigin } from "~/routes/guests/resources.server";
+import {
+  authContext,
+  headscaleLiveStoreContext,
+  requestApiContext,
+  guestVpnContext,
+} from "~/server/context";
+import { GuestVpnError, policyHash } from "~/server/guest-vpn-policy";
 import type { HeadscaleClient } from "~/server/headscale/api";
 import { isDataWithApiError } from "~/server/headscale/api/error-client";
 import { usersResource } from "~/server/headscale/live-store";
@@ -34,13 +42,18 @@ export const userAction = createAction({
       principal,
       api,
       auth: context.get(authContext),
+      vpn: context.get(guestVpnContext),
+      request,
+      context,
       refresh: () => liveStore.refresh(usersResource, api),
     };
   },
   intents: {
     create: {
       fields: { name: username, display_name: optionalText, email: optionalText },
-      async handler(input, { api, refresh }) {
+      async handler(input, { api, refresh, vpn }) {
+        if (vpn.isManagedUser(input.name))
+          throw new ActionError("This name is reserved for dedicated guest identities.", 409);
         await requireFreeName(api, input.name);
         await api.users.create({
           name: input.name,
@@ -53,7 +66,8 @@ export const userAction = createAction({
     },
     delete: {
       fields: { headscale_user_id: id },
-      async handler(input, { api, auth, refresh }) {
+      async handler(input, { api, auth, refresh, vpn }) {
+        await requireNonGuestUser(vpn, api, input.headscale_user_id);
         await api.users.delete(input.headscale_user_id);
         for (const user of await auth.listUsers()) {
           if (user.headscale_user_id === input.headscale_user_id) {
@@ -67,7 +81,10 @@ export const userAction = createAction({
     },
     rename: {
       fields: { headscale_user_id: id, name: username },
-      async handler(input, { api, refresh }) {
+      async handler(input, { api, refresh, vpn }) {
+        await requireNonGuestUser(vpn, api, input.headscale_user_id);
+        if (vpn.isManagedUser(input.name))
+          throw new ActionError("This name is reserved for dedicated guest identities.", 409);
         const users = await api.users.list({ id: input.headscale_user_id });
         const user = users.find((user) => user.id === input.headscale_user_id);
         if (!user) {
@@ -123,7 +140,8 @@ export const userAction = createAction({
         headplane_user_id: id,
         headscale_user_id: v.pipe(v.string(), v.minLength(1, "Choose a Headscale user.")),
       },
-      async handler(input, { api, auth }) {
+      async handler(input, { api, auth, vpn }) {
+        await requireNonGuestUser(vpn, api, input.headscale_user_id);
         const user = await requireHeadplaneUser(auth, input.headplane_user_id);
         const [headscaleUser] = await api.users.list({ id: input.headscale_user_id });
         if (headscaleUser?.id !== input.headscale_user_id) {
@@ -141,7 +159,7 @@ export const userAction = createAction({
       // Group membership lives in the policy, so `write_policy` is needed too.
       capability: Capabilities.write_policy,
       fields: { user_name: id, groups: list() },
-      async handler(input, { api }) {
+      async handler(input, { api, vpn, request, context }) {
         const groups = input.groups.map((group) => group.trim()).filter((group) => group !== "");
         const invalidGroups = groups.filter((group) => !isValidGroupName(group));
         if (invalidGroups.length > 0) {
@@ -155,10 +173,13 @@ export const userAction = createAction({
         }
 
         try {
-          await api.policy.set(
-            serializePolicy(setUserGroups(parsed.policy, input.user_name, groups)),
-          );
+          const candidate = serializePolicy(setUserGroups(parsed.policy, input.user_name, groups));
+          if (vpn.enabled) {
+            requireResourceOrigin(request, context);
+            await vpn.writer.edit(api, policyHash(policy), candidate);
+          } else await api.policy.set(candidate);
         } catch (error) {
+          if (error instanceof GuestVpnError) throw new ActionError(error.message, 409);
           // Headscale refuses policy writes in `file` mode. The UI hides group
           // editing then, but a stale page can still get here.
           if (isDataWithApiError(error) && error.data.rawData.includes("update is disabled")) {

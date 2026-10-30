@@ -4,6 +4,7 @@
     "guest-management",
     "guest-invitations",
     "guest-resources",
+    "guest-vpn",
     "sso",
     "proxy-auth",
     "acls",

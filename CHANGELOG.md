@@ -2,11 +2,20 @@
 
 ## Upgrading
 
+- Keep Guest VPN provisioning disabled until a stable Headscale 0.29 server (or an explicitly audited custom build), database policy mode and Headplane as the exclusive policy writer have been validated. Back up SQLite before migration 14, which follows Local Auth and adds the network lifecycle without changing existing data. Revoke and verify every Guest access before disabling the feature, downgrading or removing its API key.
+
 - Back up Headplane SQLite before upgrading local authentication. Keep the additive account, throttle and audit tables and migration history when rolling back. Local login is opt-in: configure a server-side Headscale key, create an administrator with the server CLI, and enable `auth.local.enabled`.
 
 - Back up SQLite before upgrading. The additive Guest resources migration creates a new intentions table; retain it and migration history when rolling back the application. No Headscale policy is changed.
 
 ## Changes
+
+- Administrators can opt in to dedicated Guest identities, verified interactive device onboarding, managed ACL/Grant permissions, immediate revocation and native device expiry. Durable reconciliation detects drift and refuses uncertain isolation; existing installations keep provisioning disabled.
+- Guest VPN can admit an audited custom Headscale build by exact version, commit and metadata fingerprint. Unknown builds remain blocked. Provisioning and device activation require a fresh administrator decision when policy or selected resource details change.
+
+## Fixes
+
+- Guest expiration starts its cleanup at the deadline even when an earlier monitoring failure is backing off. Cleanup attempts retain their bounded, persistent retries across restarts.
 
 - Administrators can sign in with a server-managed username and Argon2id password, keeping the Headscale key on the server. Local login includes persistent brute-force limits, server-side account recovery and session revocation, and password changes in Settings → Account. Existing API key and single sign-on methods remain available.
 

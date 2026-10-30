@@ -5,18 +5,21 @@ import * as v from "valibot";
 import Button from "~/components/button";
 import Callout from "~/components/callout";
 import Input from "~/components/input";
+import Link from "~/components/link";
 import PageHeader from "~/components/page-header";
-import { appConfigContext, invitationsContext } from "~/server/context";
+import { appConfigContext, invitationsContext, guestVpnContext } from "~/server/context";
 import {
   equalHash,
   invitationCsrf,
   invitationToken,
   validInvitationToken,
 } from "~/server/invitation-tokens";
+import { readPublicForm } from "~/server/web/public-form";
 import { formValues, parseValues } from "~/utils/form";
 
 import type { Route } from "./+types/accept";
 import { invitationStatus } from "./actions";
+import { vpnCookie, readVpnSession } from "./vpn-session.server";
 
 export const publicInvitationHeaders = {
   "Cache-Control": "no-store",
@@ -63,19 +66,31 @@ export async function loader({ request, context }: Route.LoaderArgs) {
   const { cookie, session: previous } = await readSession(request, config);
   const session = previous ?? invitationToken();
   const inspected = context.get(invitationsContext).inspect(session);
+  const headers = new Headers(publicInvitationHeaders);
+  if (!previous) headers.append("Set-Cookie", await cookie.serialize(session));
+  const vpn = context.get(guestVpnContext);
+  if (vpn.enabled && inspected.ok && inspected.value.stage === "accepted") {
+    const id = context.get(invitationsContext).verifiedGuest(session);
+    const scoped = await readVpnSession(request, config);
+    if (id && vpn.sessionGuest(scoped) !== id) {
+      const limited = context.get(invitationsContext).checkRate(`vpn-session:${session}`, 5);
+      if (!limited.ok)
+        throw data("Onboarding session temporarily unavailable.", { status: 429, headers });
+      const opened = vpn.openSession(session);
+      if (!opened.ok)
+        throw data("Onboarding session temporarily unavailable.", { status: 503, headers });
+      headers.append("Set-Cookie", await vpnCookie(config).serialize(opened.value));
+    }
+  }
   return data(
     {
       stage: inspected.ok ? inspected.value.stage : ("start" as const),
       codeSent: inspected.ok && inspected.value.codeSent,
       expires: inspected.ok ? inspected.value.expires : null,
       csrf: invitationCsrf(config.server.cookie_secret, session),
+      vpnEnabled: context.get(guestVpnContext).enabled,
     },
-    {
-      headers: {
-        ...publicInvitationHeaders,
-        ...(previous ? {} : { "Set-Cookie": await cookie.serialize(session) }),
-      },
-    },
+    { headers },
   );
 }
 
@@ -107,9 +122,9 @@ export const action = Object.assign(
         !(new URL(expected).host === internal.host && origin === internal.origin))
     )
       return reject("This request could not be verified. Reload the invitation page.", 403);
-    if (Number(request.headers.get("content-length")) > 4096)
-      return reject("Invalid invitation request.");
-    const parsed = parseValues(publicForm, formValues(await request.formData()));
+    const bounded = await readPublicForm(request, 4096);
+    if (!bounded.ok) return reject(bounded.error.message, bounded.error.status);
+    const parsed = parseValues(publicForm, formValues(bounded.value));
     if (!parsed.ok) return reject("Invalid invitation request.");
     if (parsed.data.intent === "accept" && parsed.data.consent !== "yes")
       return reject("Confirm acceptance of the administrative invitation.");
@@ -130,6 +145,11 @@ export const action = Object.assign(
           ? await invitations.sendCode(session)
           : invitations.accept(session, parsed.data.code);
       if (!result.ok) return reject(result.error.message, invitationStatus[result.error.code]);
+      if (parsed.data.intent === "accept" && context.get(guestVpnContext).enabled) {
+        const onboarding = context.get(guestVpnContext).openSession(session);
+        if (!onboarding.ok) return reject(onboarding.error.message, 503);
+        headers.append("Set-Cookie", await vpnCookie(config).serialize(onboarding.value));
+      }
     }
     return data({ ok: true as const, error: undefined }, { headers });
   },
@@ -163,8 +183,15 @@ export default function AcceptInvitation({ loaderData }: Route.ComponentProps) {
       )}
       {loaderData.stage === "accepted" ? (
         <Callout title="Invitation accepted">
-          The email address was verified and the administrative invitation was accepted. No VPN or
-          network access has been activated.
+          The email address was verified and the administrative invitation was accepted.
+          {loaderData.vpnEnabled
+            ? " Network access has its own onboarding and provisioning workflow. Open the portal for its current status."
+            : " No VPN or network access has been activated."}
+          {loaderData.vpnEnabled && (
+            <p className="mt-3">
+              <Link to="/guest-access">Continue to device onboarding</Link>
+            </p>
+          )}
         </Callout>
       ) : loaderData.stage === "verify" ? (
         <>

@@ -11,6 +11,7 @@ import { type HeadscaleVersion, LATEST_HEADSCALE } from "./versions";
 
 export interface TailnetOptions {
   version?: HeadscaleVersion;
+  binaryPath?: string;
   policy?: string | object;
   headscaleConfig?: Record<string, unknown>;
   records?: Array<{ name: string; type: string; value: string }>;
@@ -25,6 +26,7 @@ export async function createTailnet(options: TailnetOptions = {}) {
   const network = await new tc.Network().start();
   const server = await startHeadscale({
     version,
+    binaryPath: options.binaryPath,
     id,
     network,
     config: options.headscaleConfig,

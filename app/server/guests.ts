@@ -9,7 +9,7 @@ import { validateAccessDate } from "~/utils/guest-access";
 import type { ResourceInput } from "~/utils/guest-resources";
 import log from "~/utils/log";
 
-import { guests, guestInvitations, guestResources, type Guest } from "./db/schema";
+import { guests, guestInvitations, guestResources, guestVpnAccess, type Guest } from "./db/schema";
 import { err, ok, type Result } from "./result";
 
 export interface GuestError {
@@ -123,6 +123,15 @@ export function createGuestService(db: NodeSQLiteDatabase) {
   }
 
   function change(id: string, revision: number, input?: unknown): GuestResult<Guest> {
+    const network = database(() =>
+      ok(db.select().from(guestVpnAccess).where(eq(guestVpnAccess.guest_id, id)).get()),
+    );
+    if (!network.ok) return network;
+    if (network.value && !["revoked", "expired", "not_provisioned"].includes(network.value.state))
+      return err({
+        code: "conflict",
+        message: "Revoke and verify network access before editing or revoking the guest record.",
+      });
     const current = get(id);
     if (!current.ok) return current;
     const invitation = database(() =>

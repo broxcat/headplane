@@ -48,8 +48,12 @@ These are some of the features that Headplane offers:
   time zone, stored in UTC with invalid/ambiguous clock-change times refused.
 - Invitation validity, future access duration and audit retention are separate.
 
-**Guest ACLs are not provisioned, and no VPN access is automatically granted.**
-VPN revocation is not implemented: Revoke Invitation cancels the invitation only.
+**Guest VPN provisioning is disabled by default.** The immutable `v0.8.1-guest`
+release contains administrative invitations only. Development on `main` adds
+opt-in dedicated identities, interactive onboarding, managed ACL/Grant rules,
+verified revocation and native device expiry. Read the
+[Guest VPN requirements and limitations](docs/features/guest-vpn.mdx) before
+enabling it. Revoke Invitation remains distinct from network revocation.
 Real email requires SMTP configuration. Guest records remain available for audit.
 
 Read [Guest management](docs/features/guest-management.md) and

@@ -30,6 +30,9 @@ const PUBLIC = new Set([
   "routes/home.tsx",
   // This route returns only a session-bound invitation flow, never tailnet data.
   "routes/guests/accept.tsx",
+  // Only a verified, scoped guest session can see its own onboarding/device.
+  // Dashboard sessions grant no access; isolation is exercised in guest-vpn tests.
+  "routes/guests/onboarding.tsx",
 ]);
 
 // Members get only access flags or change notifications from these.

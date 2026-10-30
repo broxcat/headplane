@@ -5,6 +5,10 @@ description: Plan machine and LAN permissions without changing Headscale.
 
 # Guest resources and ACL preview
 
+[Guest VPN access](/features/guest-vpn) adds a separate opt-in provisioning
+workflow with strict identity and policy checks. Resource selection and this
+planning preview remain read-only with respect to Headscale.
+
 Phase 3 stores desired resource permissions in Headplane. It does **not** write a
 Headscale policy, create a user/key/device, approve routes, activate VPN access or
 revoke network access. Invitation acceptance remains separate from provisioning.

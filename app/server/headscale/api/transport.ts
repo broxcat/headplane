@@ -20,6 +20,7 @@ import { undiciToFriendlyError } from "./error";
 import { type HeadscaleAPIError, isApiError } from "./error-client";
 
 export interface TransportRequest {
+  timeoutMs?: number;
   method: "GET" | "POST" | "PUT" | "DELETE" | "PATCH";
   /** API path without the `/api/` prefix (e.g. `v1/node`). */
   path: `v1/${string}`;
@@ -64,8 +65,10 @@ export async function createTransport(opts: TransportOptions): Promise<Transport
   async function rawRequest(
     url: string,
     options: Partial<Dispatcher.RequestOptions> & { method: string },
+    timeoutMs?: number,
   ): Promise<Dispatcher.ResponseData> {
-    log.debug("api", "%s %s", options.method, url);
+    const safeUrl = url.split("?")[0];
+    log.debug("api", "%s %s", options.method, safeUrl);
     try {
       return await request(new URL(url, baseUrl), {
         dispatcher: agent,
@@ -76,15 +79,23 @@ export async function createTransport(opts: TransportOptions): Promise<Transport
         },
         body: options.body,
         method: options.method,
+        ...(timeoutMs ? { signal: AbortSignal.timeout(timeoutMs) } : {}),
       });
     } catch (error) {
-      const errorBody = undiciToFriendlyError(error, `${options.method} ${url}`);
+      const errorBody = undiciToFriendlyError(error, `${options.method} ${safeUrl}`);
       throw data(errorBody, { status: 502, statusText: "Bad Gateway" });
     }
   }
 
   return {
-    async request<T>({ method, path, apiKey, body, query }: TransportRequest): Promise<T> {
+    async request<T>({
+      method,
+      path,
+      apiKey,
+      body,
+      query,
+      timeoutMs,
+    }: TransportRequest): Promise<T> {
       let url = `/api/${path}`;
       const options: Partial<Dispatcher.RequestOptions> & { method: string } = {
         method,
@@ -106,9 +117,9 @@ export async function createTransport(opts: TransportOptions): Promise<Transport
         options.headers = { ...options.headers, "Content-Type": "application/json" };
       }
 
-      const res = await rawRequest(url, options);
+      const res = await rawRequest(url, options, timeoutMs);
       if (res.statusCode >= 400) {
-        log.debug("api", "%s %s failed with status %d", method, path, res.statusCode);
+        log.debug("api", "%s %s failed with status %d", method, path.split("?")[0], res.statusCode);
         const rawData = await res.body.text();
         const jsonData = (() => {
           try {
@@ -120,7 +131,7 @@ export async function createTransport(opts: TransportOptions): Promise<Transport
 
         throw data(
           {
-            requestUrl: `${method} ${path}`,
+            requestUrl: `${method} ${path.split("?")[0]}`,
             statusCode: res.statusCode,
             rawData,
             data: jsonData,

@@ -1,11 +1,13 @@
 import { redirect } from "react-router";
 import * as v from "valibot";
 
+import { requireNonGuestUser } from "~/routes/guests/identity-guard.server";
 import {
   authContext,
   headscaleContext,
   headscaleLiveStoreContext,
   requestApiContext,
+  guestVpnContext,
 } from "~/server/context";
 import { isDataWithApiError } from "~/server/headscale/api/error-client";
 import { nodesResource } from "~/server/headscale/live-store";
@@ -38,6 +40,12 @@ export const machineAction = createAction({
       if (!auth.canManageNode(principal, node)) {
         throw new ActionError("You don't have permission to manage this machine.", 403);
       }
+      if (
+        node.user &&
+        (context.get(guestVpnContext).isManagedUser(node.user.id) ||
+          context.get(guestVpnContext).isManagedUser(node.user.name))
+      )
+        throw new ActionError("Manage this dedicated guest device through Guest Details.", 409);
 
       return node;
     }
@@ -46,6 +54,7 @@ export const machineAction = createAction({
       principal,
       api,
       capabilities,
+      vpn: context.get(guestVpnContext),
       requireNode,
       refresh: () => liveStore.refresh(nodesResource, api),
     };
@@ -57,7 +66,9 @@ export const machineAction = createAction({
         register_key: v.pipe(v.string(), v.minLength(1, "Paste the machine key.")),
         user: v.pipe(v.string(), v.minLength(1, "Choose an owner.")),
       },
-      async handler(input, { api, refresh }) {
+      async handler(input, { api, refresh, vpn }) {
+        if (vpn.isManagedUser(input.user))
+          throw new ActionError("Use the verified Guest onboarding portal for this identity.", 409);
         const registrationKey = normalizeRegistrationKey(input.register_key);
         if (!registrationKey) {
           return invalid({
@@ -144,8 +155,9 @@ export const machineAction = createAction({
         node_id: nodeId,
         user_id: v.pipe(v.string(), v.minLength(1, "Choose an owner.")),
       },
-      async handler(input, { api, requireNode, refresh }) {
+      async handler(input, { api, requireNode, refresh, vpn }) {
         const node = await requireNode(input.node_id);
+        await requireNonGuestUser(vpn, api, input.user_id);
         if (!api.nodes.reassignUser) {
           throw new ActionError(
             "Changing a machine's owner isn't supported on this Headscale version.",

@@ -6,6 +6,7 @@ import Callout from "~/components/callout";
 import Section from "~/components/section";
 import type { Guest, GuestResource } from "~/server/db/schema";
 import type { previewGuestAcl } from "~/server/guest-acl-preview";
+import type { ManagedPermission } from "~/server/guest-vpn-policy";
 import type { ResourceCatalog } from "~/utils/guest-resources";
 
 import ResourceEditor from "./resource-editor";
@@ -15,8 +16,14 @@ export default function ResourceDetails({
   resources,
   catalog,
   preview,
+  networkLocked = false,
+  managed,
+  effectiveStatus,
 }: {
   guest: Guest;
+  networkLocked?: boolean;
+  managed?: ManagedPermission | null;
+  effectiveStatus?: string;
   resources: GuestResource[];
   catalog: ResourceCatalog;
   preview: ReturnType<typeof previewGuestAcl>;
@@ -26,7 +33,7 @@ export default function ResourceDetails({
     <>
       <Section
         title="Allowed resources"
-        description="Requested permissions stored in Headplane. No ACLs or VPN access are provisioned."
+        description="Requested permissions stored in Headplane. The Access section shows separately verified network permissions."
       >
         <Button
           type="button"
@@ -53,7 +60,7 @@ export default function ResourceDetails({
           ))}
         </ul>
         {catalog.error && <Callout variant="error">{catalog.error}</Callout>}
-        {guest.status === "draft" && (
+        {guest.status === "draft" && !networkLocked && (
           <ActionDialog
             key={guest.revision}
             title="Edit allowed resources"
@@ -68,43 +75,61 @@ export default function ResourceDetails({
           </ActionDialog>
         )}
       </Section>
-      <Section
-        title="ACL Preview"
-        description="Read-only static analysis of the current Headscale policy. No Apply ACL action is available."
-      >
-        <Callout variant={preview.conflicts.length ? "error" : undefined}>{preview.status}</Callout>
-        <p className="text-muted my-3 text-xs break-all">
-          Checked {preview.checkedAt} · Policy SHA256: {preview.policyHash ?? "Unavailable"}
-        </p>
-        <h3 className="my-2 font-medium">Conflicts and security warnings</h3>
-        <ul className="list-disc space-y-2 pl-5 text-sm">
-          {[...preview.conflicts, ...preview.issues].map((issue, i) => (
-            <li key={i}>
-              {issue.rule ? `${issue.rule}: ` : ""}
-              {issue.message}
-            </li>
-          ))}
-        </ul>
-        {preview.truncated && (
-          <Callout>Analysis output was truncated. Cannot verify guest isolation.</Callout>
-        )}
-        <h3 className="mt-5 mb-2 font-medium">Proposed rules (non-applicable templates)</h3>
-        <p className="text-muted mb-2 text-sm">
-          The source placeholder is intentionally unbound and invalid for provisioning. Stale
-          resources are excluded. A narrower allow rule cannot cancel existing allow rules.
-        </p>
-        <pre className="bg-surface border-line max-h-72 overflow-auto rounded-md border p-3 text-xs">
-          {JSON.stringify({ acls: preview.proposed }, null, 2)}
-        </pre>
-        <h3 className="mt-5 mb-2 font-medium">Existing permissions — potentially effective</h3>
-        <p className="text-muted mb-2 text-sm">
-          These rules are current policy expressions, not verified access for this guest. Source
-          membership, tag expansion, routing and policy extensions remain unresolved.
-        </p>
-        <pre className="bg-surface border-line max-h-72 overflow-auto rounded-md border p-3 text-xs">
-          {JSON.stringify(preview.existing, null, 2)}
-        </pre>
-      </Section>
+      {managed ? (
+        <Section
+          title="ACL Preview"
+          description="Current managed rules, verified against the dedicated identity and active policy when this page loads. The exclusive-writer contract remains required."
+        >
+          <Callout
+            variant={effectiveStatus === "Verified managed permissions" ? undefined : "error"}
+          >
+            {effectiveStatus ?? "Cannot verify guest isolation"}
+          </Callout>
+          <pre className="bg-surface border-line mt-4 max-h-72 overflow-auto rounded-md border p-3 text-xs">
+            {JSON.stringify({ [managed.section]: managed.rules }, null, 2)}
+          </pre>
+        </Section>
+      ) : (
+        <Section
+          title="ACL Preview"
+          description="Planning preview with an unbound identity. The Access section reports provisioning verification for a linked identity. This preview does not modify policy."
+        >
+          <Callout variant={preview.conflicts.length ? "error" : undefined}>
+            {preview.status}
+          </Callout>
+          <p className="text-muted my-3 text-xs break-all">
+            Checked {preview.checkedAt} · Policy SHA256: {preview.policyHash ?? "Unavailable"}
+          </p>
+          <h3 className="my-2 font-medium">Conflicts and security warnings</h3>
+          <ul className="list-disc space-y-2 pl-5 text-sm">
+            {[...preview.conflicts, ...preview.issues].map((issue, i) => (
+              <li key={i}>
+                {issue.rule ? `${issue.rule}: ` : ""}
+                {issue.message}
+              </li>
+            ))}
+          </ul>
+          {preview.truncated && (
+            <Callout>Analysis output was truncated. Cannot verify guest isolation.</Callout>
+          )}
+          <h3 className="mt-5 mb-2 font-medium">Proposed rules (non-applicable templates)</h3>
+          <p className="text-muted mb-2 text-sm">
+            The source placeholder is intentionally unbound and invalid for provisioning. Stale
+            resources are excluded. A narrower allow rule cannot cancel existing allow rules.
+          </p>
+          <pre className="bg-surface border-line max-h-72 overflow-auto rounded-md border p-3 text-xs">
+            {JSON.stringify({ acls: preview.proposed }, null, 2)}
+          </pre>
+          <h3 className="mt-5 mb-2 font-medium">Existing permissions — potentially effective</h3>
+          <p className="text-muted mb-2 text-sm">
+            These rules are current policy expressions, not verified access for this guest. Source
+            membership, tag expansion, routing and policy extensions remain unresolved.
+          </p>
+          <pre className="bg-surface border-line max-h-72 overflow-auto rounded-md border p-3 text-xs">
+            {JSON.stringify(preview.existing, null, 2)}
+          </pre>
+        </Section>
+      )}
     </>
   );
 }

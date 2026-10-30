@@ -169,7 +169,7 @@ export async function createAgentManager(
 
     if (authKey) {
       env.HEADPLANE_AGENT_TS_AUTHKEY = authKey;
-      log.info("agent", "Spawning agent with pre-auth key (prefix: %s)", authKey.slice(0, 16));
+      log.info("agent", "Spawning agent with a short-lived pre-auth key");
     } else {
       log.info("agent", "Spawning agent without pre-auth key (reusing existing state)");
     }
@@ -192,13 +192,21 @@ export async function createAgentManager(
       log.error("agent", "Failed to run the agent: %s", error.message);
     });
 
-    child.stderr?.on("data", (chunk: Buffer) => {
-      const text = chunk.toString().trim();
+    const agentStderr = createInterface({ input: child.stderr! });
+    agentStderr.on("line", (line) => {
+      const text = line.trim();
       if (!text) {
         return;
       }
 
-      log.debug("agent", "%s", text);
+      log.debug(
+        "agent",
+        "%s",
+        text.replace(
+          /https?:\/\/\S*\/register\/\S+|hskey-[A-Za-z0-9_-]+/g,
+          "[registration credential redacted]",
+        ),
+      );
 
       // tsnet prints an auth URL when it falls back to interactive login.
       const authMatch = text.match(
@@ -218,23 +226,23 @@ export async function createAgentManager(
 
       if (authMatch) {
         state.authUrl = authMatch[1];
-        log.warn("agent", "Agent is waiting for interactive approval; visit: %s", state.authUrl);
+        log.warn("agent", "Agent is waiting for interactive approval");
 
         const authId = state.authUrl.split("/").pop();
         if (authId && authId !== approvingAuthId) {
           approvingAuthId = authId;
-          log.info("agent", "Attempting to auto-approve auth request %s", authId);
+          log.info("agent", "Attempting to auto-approve the agent auth request");
           apiClient.auth
             .approve(authId)
             .then(() => {
-              log.info("agent", "Auto-approved auth request %s", authId);
+              state.authUrl = undefined;
+              approvingAuthId = undefined;
+              log.info("agent", "Auto-approved the agent auth request");
             })
-            .catch((error) => {
+            .catch(() => {
               log.warn(
                 "agent",
-                "Failed to auto-approve auth request %s: %s",
-                authId,
-                error instanceof Error ? error.message : String(error),
+                "Failed to auto-approve the agent auth request; retry registration from the agent settings",
               );
             });
         }

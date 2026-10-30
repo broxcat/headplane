@@ -85,6 +85,31 @@ integration tests run against the latest one. Set
 `HP_HEADSCALE_VERSIONS=all` (as CI does) or a comma-separated list to run
 others.
 
+To validate an audited local Headscale executable without touching its native
+service, run the Guest scenarios separately with one worker:
+
+```sh
+HP_GUEST_HEADSCALE_BINARY=/path/to/audited/headscale \
+HP_GUEST_BUILD_APPROVAL=/private/path/to/approval.json \
+pnpm exec vitest run --project integration:app --maxWorkers=1 \
+  tests/integration/headplane/guest-vpn.test.ts \
+  tests/integration/headplane/guest-vpn-recovery.test.ts \
+  tests/integration/headplane/guest-vpn-security.test.ts \
+  tests/integration/headplane/guest-vpn-preview.test.ts \
+  tests/integration/headplane/guest-vpn-expiration.test.ts \
+  tests/integration/headplane/guest-vpn-custom-build.test.ts
+```
+
+The JSON file contains exactly the independently audited `version`, `commit`
+and `fingerprint` approval fields documented in the Guest VPN guide. The harness
+copies the executable into disposable containers and refuses a mismatch; it never
+derives an approval automatically from a server response. Keep this run separate
+from `HP_HEADSCALE_VERSIONS=all`. The image version in ordinary scenario labels is
+the container base; `/version` and the approval identify the executable actually
+tested. Run `pnpm build` before the optional `HP_GUEST_BROWSER=1` production-build
+Chromium scenario. Bound integration workers on hosts with many existing Docker
+networks, instead of changing the daemon's address pools or pruning unrelated networks.
+
 ## Scenarios
 
 A scenario is a seeded tailnet described as data: users, machines, routes, a

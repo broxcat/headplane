@@ -1,6 +1,13 @@
 import * as v from "valibot";
 
-import { authContext, headscaleContext, requestApiContext } from "~/server/context";
+import { requireResourceOrigin } from "~/routes/guests/resources.server";
+import {
+  authContext,
+  headscaleContext,
+  requestApiContext,
+  guestVpnContext,
+} from "~/server/context";
+import { GuestVpnError } from "~/server/guest-vpn-policy";
 import { isDataWithApiError } from "~/server/headscale/api/error-client";
 import { ActionError, createAction } from "~/server/web/actions";
 import { Capabilities } from "~/server/web/roles";
@@ -17,17 +24,18 @@ export const aclAction = createAction({
     const principal = await context.get(authContext).require(request);
     const { api } = await context.get(requestApiContext)(request);
     const { capabilities } = context.get(headscaleContext);
-    return { principal, api, capabilities };
+    return { principal, api, capabilities, vpn: context.get(guestVpnContext), request, context };
   },
   intents: {
     save: {
       fields: {
+        policy_revision: v.optional(v.string(), ""),
         policy: v.pipe(
           v.string(),
           v.check((value) => value.trim().length > 0, "The policy can't be empty."),
         ),
       },
-      async handler(input, { api, capabilities }) {
+      async handler(input, { api, capabilities, vpn, request, context }) {
         const parsed = parsePolicy(input.policy);
         if (!parsed.ok) {
           return invalid({ form: `Syntax error: ${parsed.error}` });
@@ -42,8 +50,12 @@ export const aclAction = createAction({
         }
 
         try {
-          await api.policy.set(input.policy);
+          if (vpn.enabled) {
+            requireResourceOrigin(request, context);
+            await vpn.writer.edit(api, input.policy_revision, input.policy);
+          } else await api.policy.set(input.policy);
         } catch (error) {
+          if (error instanceof GuestVpnError) throw new ActionError(error.message, 409);
           if (!isDataWithApiError(error)) {
             throw error;
           }

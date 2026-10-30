@@ -664,6 +664,10 @@ export function createInvitationService({
     inspect,
     sendCode,
     accept,
+    verifiedGuest(session: string): string | null {
+      const row = sessionRecord(session);
+      return row?.invitation.status === "accepted" ? row.invitation.guest_id : null;
+    },
     expire,
     checkRate,
     start() {

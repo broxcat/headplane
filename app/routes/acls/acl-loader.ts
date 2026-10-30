@@ -3,7 +3,9 @@ import {
   headscaleContext,
   headscaleLiveStoreContext,
   requestApiContext,
+  guestVpnContext,
 } from "~/server/context";
+import { policyHash } from "~/server/guest-vpn-policy";
 import { isDataWithApiError } from "~/server/headscale/api/error-client";
 import { nodesResource, usersResource } from "~/server/headscale/live-store";
 import { Capabilities } from "~/server/web/roles";
@@ -26,6 +28,7 @@ export async function aclLoader({ request, context }: Route.LoaderArgs) {
   const principal = await auth.requireCapability(request, Capabilities.read_policy);
 
   const flags = {
+    policyRevision: "",
     // Can the user write to the ACL policy
     access: auth.can(principal, Capabilities.write_policy),
     writable: false,
@@ -64,6 +67,7 @@ export async function aclLoader({ request, context }: Route.LoaderArgs) {
     const { policy, updatedAt } = await api.policy.get();
     flags.writable = updatedAt !== null;
     flags.policy = policy;
+    if (context.get(guestVpnContext).enabled) flags.policyRevision = policyHash(policy);
     return flags;
   } catch (error) {
     // Database mode before the first save. Any other failure must not look

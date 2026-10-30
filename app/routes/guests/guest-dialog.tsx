@@ -95,7 +95,7 @@ export default function GuestDialog({
         value={duration}
         onValueChange={setDuration}
         required
-        description="Relative durations start only when VPN permissions are actually activated in a future phase. Invitation validity is separate."
+        description="Relative durations start only after VPN permissions are actually activated and verified. Invitation validity is separate."
       />
       <input type="hidden" name="time_zone" value={timeZone} />
       {custom && (

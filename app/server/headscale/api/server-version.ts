@@ -85,11 +85,15 @@ export function parseServerVersion(raw: string): ServerVersion {
   };
 }
 
-/** Pretty-print a parsed version for logs (no `v` prefix, includes prerelease). */
+/** Pretty-print for logs without hiding prerelease or custom-build metadata. */
 export function formatServerVersion(version: ServerVersion): string {
   if (version.unknown) return version.raw;
   const core = `${version.major}.${version.minor}.${version.patch}`;
-  return version.prerelease ? `${core}-${version.prerelease}` : core;
+  return (
+    core +
+    (version.prerelease ? `-${version.prerelease}` : "") +
+    (version.build ? `+${version.build}` : "")
+  );
 }
 
 /**

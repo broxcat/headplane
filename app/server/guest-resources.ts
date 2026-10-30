@@ -9,7 +9,7 @@ import type { Machine } from "~/types";
 import { canonicalPorts, type ResourceInput, type ResourceNode } from "~/utils/guest-resources";
 
 import type { Guest, GuestResource } from "./db/schema";
-import { guests, guestResources } from "./db/schema";
+import { guests, guestResources, guestVpnAccess } from "./db/schema";
 import type { GuestResult } from "./guests";
 import { ok, err } from "./result";
 import { ActionError } from "./web/actions";
@@ -142,6 +142,16 @@ export function createGuestResourceService(db: NodeSQLiteDatabase) {
       const resources = validateResources(raw, nodes);
       return ok(
         db.transaction((tx) => {
+          const access = tx
+            .select()
+            .from(guestVpnAccess)
+            .where(eq(guestVpnAccess.guest_id, id))
+            .get();
+          if (access && !["revoked", "expired", "not_provisioned"].includes(access.state))
+            throw new ActionError(
+              "Revoke and verify guest network access before changing resource intentions.",
+              409,
+            );
           const now = new Date();
           const changed = tx
             .update(guests)

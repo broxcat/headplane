@@ -517,6 +517,14 @@ for (const version of testedVersions()) {
       );
     });
 
+    test.runIf(acceptsGrants)("policy validation does not apply the candidate", async () => {
+      const before = await tailnet.api.policy.get();
+      await tailnet.api.policy.check('{"grants":[]}');
+      expect(await tailnet.api.policy.get()).toEqual(before);
+      expect(await rejection(tailnet.api.policy.check("{"))).toMatch(/parsing|invalid/i);
+      expect(await tailnet.api.policy.get()).toEqual(before);
+    });
+
     test(`a policy with grants is ${acceptsGrants ? "accepted" : "rejected"}`, async () => {
       const policy = '{"grants":[{"src":["*"],"dst":["*"],"ip":["*"]}]}';
       const result = await tailnet.api.policy.set(policy).then(
