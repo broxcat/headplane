@@ -7,6 +7,7 @@ import { cn } from "cn/vite";
 import { defineConfig } from "vite";
 
 import { headplaneDevServer } from "./runtime/vite-plugin";
+import { bundledLicenses } from "./scripts/bundled-licenses";
 
 const PROD_ENTRY = "./app/server/main.ts";
 const DEV_ENTRY = "./app/server/app.ts";
@@ -48,6 +49,7 @@ export default defineConfig(({ command }) => {
         publicDir: new URL("./public", import.meta.url).pathname,
       }),
       reactRouter(),
+      ...(process.env.HEADPLANE_GUEST_PACKAGE === "1" ? [bundledLicenses()] : []),
       tailwindcss(),
       cn({
         content: ["app/**/*.{ts,tsx}"],
@@ -64,7 +66,7 @@ export default defineConfig(({ command }) => {
     },
     build: {
       target: "baseline-widely-available",
-      sourcemap: true,
+      sourcemap: false,
     },
     environments: {
       client: {

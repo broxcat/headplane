@@ -1,0 +1,24 @@
+[Unit]
+Description=Headplane Guest administration UI
+After=network.target
+
+[Service]
+Type=simple
+User=headplane
+Group=headplane
+WorkingDirectory=/opt/headplane/current
+Environment=NODE_ENV=production
+Environment=HEADPLANE_CONFIG_PATH=/etc/headplane/config.yaml
+ExecStart=/usr/bin/node /opt/headplane/current/build/server/index.js
+Restart=on-failure
+UMask=0077
+StateDirectory=headplane
+StateDirectoryMode=0700
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectHome=true
+ProtectSystem=strict
+ReadWritePaths=/var/lib/headplane
+
+[Install]
+WantedBy=multi-user.target

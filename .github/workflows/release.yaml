@@ -3,6 +3,7 @@ on:
   push:
     tags:
       - "*"
+      - "!v*-guest"
 
 concurrency:
   group: release-${{ github.ref }}
@@ -17,6 +18,7 @@ permissions:
 
 jobs:
   channel:
+    if: github.repository == 'tale/headplane'
     name: Release Channel
     runs-on: ubuntu-latest
     outputs:

@@ -3,6 +3,7 @@ on:
   push:
     tags:
       - "v*"
+      - "!v*-guest"
 
 permissions:
   issues: write
@@ -10,7 +11,7 @@ permissions:
 jobs:
   beta:
     name: Beta Release Lifecycle
-    if: contains(github.ref_name, '-')
+    if: github.repository == 'tale/headplane' && contains(github.ref_name, '-')
     runs-on: ubuntu-latest
     steps:
       - name: Check out the repo
@@ -50,7 +51,7 @@ jobs:
 
   stable:
     name: Stable Release Lifecycle
-    if: ${{ !contains(github.ref_name, '-') }}
+    if: ${{ github.repository == 'tale/headplane' && !contains(github.ref_name, '-') }}
     runs-on: ubuntu-latest
     steps:
       - name: Close milestone issues

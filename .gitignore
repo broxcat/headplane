@@ -15,3 +15,5 @@ node_modules
 /.direnv
 /app/utils/cn-tables.ts
 /vendor
+
+/dist/

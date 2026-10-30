@@ -21,11 +21,13 @@ const env = {
   NODE_ENV: "production",
 };
 
+// Use the self-contained TLS/DERP fixture instead of fetching a public DERP map
+// during startup; CI must not depend on external control-plane availability.
 let headscale: StartedHeadscale;
 
 beforeAll(async () => {
   [headscale] = await Promise.all([
-    startHeadscale({ version: LATEST_HEADSCALE, id: `base-path-${process.pid}` }),
+    startHeadscale({ version: LATEST_HEADSCALE, id: `base-path-${process.pid}`, tls: true }),
     promisify(execFile)("pnpm", ["run", "build"], { env, maxBuffer: 32 * 1024 * 1024 }),
   ]);
 }, 180_000);
@@ -55,6 +57,7 @@ describe.each(["/admin", "/tools/web"])("the production build at %s", (prefix) =
         HEADPLANE_SERVER__COOKIE_SECRET: "thirtytwo-character-cookiesecret",
         HEADPLANE_SERVER__COOKIE_SECURE: "false",
         HEADPLANE_HEADSCALE__URL: headscale.url,
+        HEADPLANE_HEADSCALE__TLS_CERT_PATH: headscale.certPath!,
         // /admin is the default, so it runs without the option set.
         ...(prefix === "/admin" ? {} : { HEADPLANE_SERVER__BASE_PATH: prefix }),
       },
