@@ -196,8 +196,9 @@ existing rows. Guest records keep their original draft/revoked semantics;
 network timestamps and states live in `guest_vpn_access`.
 The persisted preview hash binds preparation to subsequent activation. Keep
 these additive tables and migration history when rolling back the application;
-verify all Guest access revoked first. An older experimental VPN database
-without a stored preview requires a fresh administrator approval before activation.
+verify all Guest access revoked first. The supported upgrade baseline is the
+deployed Local Auth schema. Earlier unmerged VPN fixtures are outside that
+upgrade path; run the harness with a fresh disposable database.
 
 The access state machine is:
 

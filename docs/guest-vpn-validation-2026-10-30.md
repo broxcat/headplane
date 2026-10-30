@@ -122,6 +122,25 @@ now takes priority once, and subsequent cleanup retains its persistent backoff.
 
 ## CI investigation and remaining gate
 
+Local checks on the final implementation:
+
+| Check                                                                 | Result                                                                         |
+| --------------------------------------------------------------------- | ------------------------------------------------------------------------------ |
+| Frozen dependency installation                                        | Passed                                                                         |
+| Unit suite                                                            | 427 passed, one optional migration-source test skipped                         |
+| Audited native build: lifecycle/security/preview/build-gate scenarios | 9 passed, one older-version case intentionally skipped                         |
+| Real short expiry, native build                                       | Passed                                                                         |
+| Real short expiry, official 0.29.5                                    | Passed                                                                         |
+| Native-build Chromium workflow                                        | Passed, light/dark/mobile captures renewed                                     |
+| Typecheck, build, Drizzle snapshot check                              | Passed                                                                         |
+| Lint                                                                  | Passed with the existing unused-parameter warning in `app/utils/live-data.tsx` |
+| Go tests                                                              | Passed                                                                         |
+| Gitleaks and diff whitespace checks                                   | Passed                                                                         |
+
+The complete multiversion integration result and final GitHub check conclusions
+are kept in the PR, whose laptop gate remains outstanding. Captures contain only
+the harness's synthetic identities and resources.
+
 The earlier failing job was **Integration (Headscale 0.27.1)** in
 [run 41108401532](https://github.com/broxcat/headplane/actions/runs/41108401532).
 The failing DNS test reported `tar-stream: Size mismatch`, not an absent Guest
