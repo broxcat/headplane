@@ -5,6 +5,7 @@ import { createContext, RouterContextProvider } from "react-router";
 import log from "~/utils/log";
 
 import type { HeadplaneConfig } from "./config/config-schema";
+import { ConfigError } from "./config/error";
 import { loadIntegration } from "./config/integration";
 import { createDbClient } from "./db/client.server";
 import { disabled, enabled, type Feature } from "./feature";
@@ -19,10 +20,12 @@ import { createLiveStore, nodesResource, usersResource } from "./headscale/live-
 import { type AgentManager, createAgentManager } from "./hp-agent";
 import { createOidcService, type OidcService } from "./oidc/provider";
 import { createAuthService, type Principal } from "./web/auth";
+import { createLocalAuthService } from "./web/local-auth";
 
 export type AppContext = Awaited<ReturnType<typeof createAppContext>>;
 export const agentsContext = createContext<AppContext["agents"]>();
 export const appConfigContext = createContext<AppContext["config"]>();
+export const localAuthContext = createContext<AppContext["localAuth"]>();
 export const authContext = createContext<AppContext["auth"]>();
 export const dbContext = createContext<AppContext["db"]>();
 export const guestMailerContext = createContext<AppContext["mailer"]>();
@@ -78,7 +81,20 @@ export async function createAppContext(config: HeadplaneConfig) {
     db,
   );
 
+  if (config.auth?.local?.enabled && !headscaleApiKey) {
+    throw ConfigError.from("INVALID_REQUIRED_FIELDS", {
+      messages: ["Local authentication requires headscale.api_key (or its secret file)."],
+    });
+  }
+  const localAuth = createLocalAuthService(db, config.server.cookie_secret);
+  if (config.auth?.local?.enabled && !localAuth.available()) {
+    log.warn(
+      "auth",
+      "Local authentication has no enabled accounts. Create an administrator using the server CLI.",
+    );
+  }
   const auth = createAuthService({
+    localEnabled: config.auth?.local?.enabled,
     secret: config.server.cookie_secret,
     headscaleApiKey,
     proxyAuth: config.server.proxy_auth
@@ -162,6 +178,7 @@ export async function createAppContext(config: HeadplaneConfig) {
     headscaleApiKey,
     agents,
     auth,
+    localAuth,
     oidc,
     hsLive,
     hs,
@@ -177,6 +194,7 @@ export function createRouterContext(ctx: AppContext) {
   context.set(agentsContext, ctx.agents);
   context.set(appConfigContext, ctx.config);
   context.set(authContext, ctx.auth);
+  context.set(localAuthContext, ctx.localAuth);
   context.set(dbContext, ctx.db);
   context.set(guestsContext, ctx.guests);
   context.set(guestVpnContext, ctx.guestVpn);

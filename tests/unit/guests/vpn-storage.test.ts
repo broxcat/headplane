@@ -8,13 +8,14 @@ import { migrate } from "~/server/db/migrate";
 import { guestInvitations, guestVpnAccess } from "~/server/db/schema";
 import { createGuestPolicyWriter } from "~/server/guest-policy-writer";
 import { createGuestService } from "~/server/guests";
+import { createLocalAuthService } from "~/server/web/local-auth";
 
 import { tempDir } from "../../support/temp";
 
-test("migration 13 preserves retained guests and accepted invitation references from schema 12", async () => {
+test("VPN migration upgrades the deployed local-auth schema without losing guests or invitations", async () => {
   const dir = await tempDir();
   const prior = join(dir, "prior");
-  for (const folder of (await readdir("drizzle")).filter((f) => f < "20261030153537"))
+  for (const folder of (await readdir("drizzle")).filter((f) => !f.endsWith("_guest_vpn_access")))
     await cp(join("drizzle", folder), join(prior, folder), { recursive: true });
   const path = join(dir, "copy.db");
   const db = drizzle(path);
@@ -35,12 +36,25 @@ test("migration 13 preserves retained guests and accepted invitation references 
         created_at: new Date(),
       })
       .run();
+    const local = createLocalAuthService(db, "vpn-upgrade-test");
+    expect(
+      (await local.create("retained-admin", "Retained", "retained migration test passphrase")).ok,
+    ).toBe(true);
+    const credentials = db.$client.prepare("SELECT * FROM local_admin_users").all();
+    const migrations = db.$client.prepare("SELECT * FROM __drizzle_migrations").all();
     const guest = db.$client.prepare("SELECT * FROM guests").all();
     const invitation = db.$client.prepare("SELECT * FROM guest_invitations").all();
     migrate(db, { migrationsFolder: "drizzle" });
+    expect(db.$client.prepare("SELECT * FROM local_admin_users").all()).toEqual(credentials);
+    expect(
+      db.$client.prepare("SELECT * FROM __drizzle_migrations").all().slice(0, migrations.length),
+    ).toEqual(migrations);
+    expect(
+      (await local.authenticate("retained-admin", "retained migration test passphrase")).ok,
+    ).toBe(true);
     expect(db.$client.prepare("SELECT * FROM guests").all()).toEqual(guest);
     expect(db.$client.prepare("SELECT * FROM guest_invitations").all()).toEqual(invitation);
-    expect(db.$client.prepare("SELECT count(*) AS n FROM __drizzle_migrations").get()?.n).toBe(13);
+    expect(db.$client.prepare("SELECT count(*) AS n FROM __drizzle_migrations").get()?.n).toBe(14);
     expect(db.$client.prepare("PRAGMA foreign_key_check").all()).toEqual([]);
     expect(() =>
       db

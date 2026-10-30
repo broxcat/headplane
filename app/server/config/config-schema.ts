@@ -283,6 +283,7 @@ const partialInvitationConfig = type({
 
 export const headplaneConfig = type({
   debug: "boolean = false",
+  "auth?": { "local?": { enabled: "boolean = false" } },
   server: serverConfig,
   headscale: headscaleConfig,
   oidc: oidcConfig.optional(),
@@ -296,6 +297,7 @@ export const headplaneConfig = type({
 
 export const partialHeadplaneConfig = type({
   debug: "boolean?",
+  "auth?": { "local?": { enabled: "boolean?" } },
   server: partialServerConfig.optional(),
   headscale: partialHeadscaleConfig.optional(),
   oidc: partialOidcConfig.optional(),

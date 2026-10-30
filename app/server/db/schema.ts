@@ -33,7 +33,7 @@ export type HeadplaneUserInsert = typeof users.$inferInsert;
 
 export const authSessions = sqliteTable("auth_sessions", {
   id: text("id").primaryKey(),
-  kind: text("kind").notNull(), // 'oidc' | 'api_key' (proxy auth is request-scoped)
+  kind: text("kind").notNull(), // 'oidc' | 'api_key' | 'local_admin' (proxy auth is request-scoped)
   user_id: text("user_id"),
   api_key_hash: text("api_key_hash"),
   api_key_display: text("api_key_display"),
@@ -391,3 +391,37 @@ export const guestVpnPolicyState = sqliteTable(
   },
   (t) => [check("guest_vpn_policy_singleton", sql`${t.id} = 1`)],
 );
+
+// Credentials never leave the server. Identity and permissions stay in users.
+export const localAdminUsers = sqliteTable(
+  "local_admin_users",
+  {
+    user_id: text("user_id")
+      .primaryKey()
+      .references(() => users.id),
+    username: text("username").notNull(),
+    normalized_username: text("normalized_username").notNull().unique(),
+    password_hash: text("password_hash").notNull(),
+    enabled: integer("enabled", { mode: "boolean" }).notNull().default(true),
+    password_changed_at: integer("password_changed_at", { mode: "timestamp_ms" }).notNull(),
+    revision: integer("revision").notNull().default(1),
+  },
+  (t) => [
+    check("local_admin_enabled", sql`${t.enabled} IN (0, 1)`),
+    check("local_admin_revision", sql`${t.revision} >= 1`),
+  ],
+);
+
+export const localAuthLimits = sqliteTable("local_auth_limits", {
+  key: text("key").primaryKey(),
+  window_start: integer("window_start").notNull(),
+  hits: integer("hits").notNull(),
+  locked_until: integer("locked_until").notNull(),
+});
+
+export const localAuthEvents = sqliteTable("local_auth_events", {
+  id: text("id").primaryKey(),
+  kind: text("kind").notNull(),
+  user_id: text("user_id"),
+  created_at: integer("created_at", { mode: "timestamp_ms" }).notNull(),
+});

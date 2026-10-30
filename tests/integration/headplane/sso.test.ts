@@ -66,6 +66,35 @@ describe.for(testedVersions())("single sign-on with Headscale %s", (version) => 
     return (await (await pending.joined()).machine()).user!;
   }
 
+  test("an enabled local administrator can coexist with real Dex authentication", async () => {
+    const both = await tailnet.headplane({
+      config: {
+        server: { base_url: HEADPLANE_URL },
+        auth: { local: { enabled: true } },
+        oidc: { ...dex.headplaneOidc, disable_api_key_login: true },
+      },
+    });
+    await both.signIn("owner");
+    const created = await both.ctx.localAuth.create(
+      "operations",
+      "Operations",
+      "local and single sign-on passphrase",
+    );
+    expect(created.ok).toBe(true);
+    const local = await both.ctx.localAuth.authenticate(
+      "operations",
+      "local and single sign-on passphrase",
+    );
+    if (!local.ok) throw new Error(local.error);
+    const cookie = await both.ctx.auth.createLocalSession(local.value.userId, local.value.revision);
+    expect((await both.ctx.auth.require(both.request("/", { as: cookie }))).kind).toBe(
+      "local_admin",
+    );
+    const sso = await signIn("alice@allowed.test", both);
+    expect(sso.principal.kind).toBe("oidc");
+    expect(sso.principal.user.id).not.toBe(local.value.userId);
+  });
+
   test("signing in links the account to the Headscale user from the same sign-in", async () => {
     const user = await registerDevice("alice-laptop", "alice@allowed.test");
     expect(user.provider).toBe("oidc");

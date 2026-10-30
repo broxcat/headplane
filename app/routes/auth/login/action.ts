@@ -1,7 +1,15 @@
-import { redirect } from "react-router";
+import { DrizzleQueryError } from "drizzle-orm";
+import { data, redirect } from "react-router";
 
-import { authContext, headscaleContext } from "~/server/context";
+import {
+  appConfigContext,
+  authContext,
+  headscaleContext,
+  localAuthContext,
+} from "~/server/context";
 import { headscaleErrorMessage, isDataWithApiError } from "~/server/headscale/api/error-client";
+import { ActionError } from "~/server/web/actions";
+import { requireSameOrigin } from "~/server/web/csrf";
 import log from "~/utils/log";
 
 import type { Route } from "./+types/page";
@@ -10,7 +18,46 @@ export async function loginAction({ request, context }: Route.LoaderArgs) {
   const auth = context.get(authContext);
   const headscale = context.get(headscaleContext);
 
+  try {
+    requireSameOrigin(request);
+  } catch (error) {
+    if (error instanceof ActionError)
+      return data({ success: false as const, message: error.message }, { status: error.status });
+    throw error;
+  }
   const formData = await request.formData();
+  if (formData.get("method") === "local") {
+    try {
+      const config = context.get(appConfigContext);
+      const local = context.get(localAuthContext);
+      if (!config.auth?.local?.enabled || !local.available())
+        throw new ActionError("Local authentication is unavailable.", 403);
+      const username = formData.get("username");
+      const password = formData.get("password");
+      const result = await local.authenticate(
+        typeof username === "string" ? username : "",
+        typeof password === "string" ? password : "",
+        auth.clientAddress(request),
+      );
+      if (!result.ok)
+        throw new ActionError("Invalid credentials", result.error === "limited" ? 429 : 400);
+      const cookie = await auth.createLocalSession(result.value.userId, result.value.revision);
+      if (!cookie) throw new ActionError("Invalid credentials");
+      log.info("auth", "Local authentication: login_succeeded (account %s)", result.value.userId);
+      return redirect("/machines", { headers: { "Set-Cookie": cookie } });
+    } catch (error) {
+      if (error instanceof DrizzleQueryError) {
+        log.error("auth", "Local authentication database operation failed");
+        return data(
+          { success: false as const, message: "Authentication is temporarily unavailable." },
+          { status: 503 },
+        );
+      }
+      if (error instanceof ActionError)
+        return data({ success: false as const, message: error.message }, { status: error.status });
+      throw error;
+    }
+  }
   const apiKey = formData.has("api_key") ? String(formData.get("api_key")).trim() : undefined;
 
   if (apiKey === undefined) {

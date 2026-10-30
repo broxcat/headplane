@@ -6,7 +6,7 @@ import Callout from "~/components/callout";
 import Code from "~/components/code";
 import Input from "~/components/input";
 import Link from "~/components/link";
-import { appConfigContext, authContext, oidcContext } from "~/server/context";
+import { appConfigContext, authContext, localAuthContext, oidcContext } from "~/server/context";
 import type { OidcError, OidcService } from "~/server/oidc/provider";
 import { useLiveData } from "~/utils/live-data";
 import log from "~/utils/log";
@@ -22,6 +22,7 @@ export async function loader({ request, context, url }: Route.LoaderArgs) {
   const auth = context.get(authContext);
   const config = context.get(appConfigContext);
   const oidc = context.get(oidcContext);
+  const isLocalEnabled = !!config.auth?.local?.enabled && context.get(localAuthContext).available();
 
   try {
     await auth.require(request);
@@ -48,6 +49,7 @@ export async function loader({ request, context, url }: Route.LoaderArgs) {
   }
 
   if (
+    !isLocalEnabled &&
     oidcService &&
     config.oidc?.disable_api_key_login &&
     oidcStatus?.state === "ready" &&
@@ -60,6 +62,7 @@ export async function loader({ request, context, url }: Route.LoaderArgs) {
   const oidcErrorCodes = oidcStatus?.state === "error" ? [oidcStatus.error.code] : [];
 
   return {
+    isLocalEnabled,
     isCookieSecureEnabled: config.server.cookie_secure,
     isOidcConnectorEnabled,
     oidcErrorCodes,
@@ -77,7 +80,13 @@ function logLoginOidcError(context: string, error: OidcError): void {
 }
 
 export default function Page({ loaderData, actionData }: Route.ComponentProps) {
-  const { isCookieSecureEnabled, isOidcConnectorEnabled, oidcErrorCodes, urlState } = loaderData;
+  const {
+    isLocalEnabled,
+    isCookieSecureEnabled,
+    isOidcConnectorEnabled,
+    oidcErrorCodes,
+    urlState,
+  } = loaderData;
 
   const [showCookieWarning, setShowCookieWarning] = useState(false);
   const [params] = useSearchParams();
@@ -137,13 +146,46 @@ export default function Page({ loaderData, actionData }: Route.ComponentProps) {
   return (
     <Shell title="Sign in to Headplane">
       {notice}
+      {isLocalEnabled && (
+        <Form className="mb-6 flex flex-col gap-3" method="POST">
+          <input type="hidden" name="method" value="local" />
+          <Input
+            label="Username"
+            name="username"
+            autoComplete="username"
+            required
+            minLength={3}
+            maxLength={64}
+            autoCapitalize="none"
+            spellCheck={false}
+          />
+          <Input
+            label="Password"
+            name="password"
+            type="password"
+            autoComplete="current-password"
+            required
+            maxLength={512}
+            invalid={actionData?.success === false}
+            errorMessage={actionData?.success === false ? actionData.message : undefined}
+          />
+          <Button
+            className="w-full"
+            type="submit"
+            variant="primary"
+            pending={navigation.state === "submitting"}
+          >
+            Sign in
+          </Button>
+        </Form>
+      )}
       {isOidcConnectorEnabled && (
         <>
           <Button
             className="w-full"
             nativeButton={false}
             render={<RouterLink prefetch="none" reloadDocument to="/oidc/start" />}
-            variant="primary"
+            variant={isLocalEnabled ? "secondary" : "primary"}
           >
             Continue with SSO
           </Button>
@@ -154,33 +196,36 @@ export default function Page({ loaderData, actionData }: Route.ComponentProps) {
           </div>
         </>
       )}
-      <Form className="flex flex-col gap-3" method="POST">
-        <Input
-          autoComplete="current-password"
-          errorMessage={actionData?.success === false ? actionData.message : undefined}
-          invalid={actionData?.success === false}
-          label="API key"
-          labelTooltip={
-            <>
-              Create one by running{" "}
-              <Code className="whitespace-nowrap">headscale apikeys create</Code> on your Headscale
-              server.
-            </>
-          }
-          name="api_key"
-          placeholder="hskey-api-…"
-          required
-          type="password"
-        />
-        <Button
-          className="w-full"
-          pending={navigation.state === "submitting"}
-          type="submit"
-          variant={isOidcConnectorEnabled ? "secondary" : "primary"}
-        >
-          Sign in with API key
-        </Button>
-      </Form>
+      <details open={!isLocalEnabled}>
+        <summary className="text-muted mb-4 cursor-pointer text-sm">Advanced</summary>
+        <Form className="flex flex-col gap-3" method="POST">
+          <Input
+            autoComplete="current-password"
+            errorMessage={actionData?.success === false ? actionData.message : undefined}
+            invalid={actionData?.success === false}
+            label="API key"
+            labelTooltip={
+              <>
+                Create one by running{" "}
+                <Code className="whitespace-nowrap">headscale apikeys create</Code> on your
+                Headscale server.
+              </>
+            }
+            name="api_key"
+            placeholder="hskey-api-…"
+            required
+            type="password"
+          />
+          <Button
+            className="w-full"
+            pending={navigation.state === "submitting"}
+            type="submit"
+            variant={isLocalEnabled || isOidcConnectorEnabled ? "secondary" : "primary"}
+          >
+            Sign in with API key
+          </Button>
+        </Form>
+      </details>
     </Shell>
   );
 }

@@ -125,3 +125,11 @@ refer to the [contributor guidelines](./.github/CONTRIBUTING.md) for more info.
 </picture>
 
 > Copyright (c) 2025 Aarnav Tale
+
+### Local administrator login
+
+Optional username/password sign-in keeps the Headscale administrative key on the
+server and coexists with API key and OIDC authentication. Create accounts with
+`node build/server/index.js admin create --config /etc/headplane/config.yaml`
+and enable `auth.local.enabled`. See the [local authentication guide](docs/configuration/local-auth.md)
+for setup, password recovery, session revocation and SQLite backups.

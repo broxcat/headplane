@@ -20,6 +20,7 @@ export async function loader({ request, context }: Route.LoaderArgs) {
 
 export default function Layout({ loaderData }: Route.ComponentProps) {
   const items = [
+    { to: "/settings/account", label: "Account" },
     { to: "/settings/auth-keys", label: "Auth keys" },
     ...(loaderData.hasRestrictions
       ? [{ to: "/settings/restrictions", label: "Sign-in restrictions" }]

@@ -17,6 +17,8 @@ export interface HeadplaneConfigOptions {
   oidc?: Record<string, unknown>;
   guestInvitations?: Record<string, unknown>;
   guestVpn?: Record<string, unknown>;
+
+  auth?: Record<string, unknown>;
 }
 
 export async function writeHeadplaneConfig(tailnet: Tailnet, options: HeadplaneConfigOptions) {
@@ -52,6 +54,8 @@ export async function writeHeadplaneConfig(tailnet: Tailnet, options: HeadplaneC
       oidc: options.oidc,
       guest_invitations: options.guestInvitations,
       guest_vpn: options.guestVpn,
+
+      auth: options.auth,
     }),
   );
 

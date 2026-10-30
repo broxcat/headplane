@@ -348,3 +348,11 @@ integration:
 # guest_vpn:
 #   enabled: false
 #   single_policy_writer: false
+
+# Optional server-managed administrator login. Create the first account using
+# node build/server/index.js admin create --config /etc/headplane/config.yaml
+# Requires headscale.api_key or headscale.api_key_path; never enter that key in
+# the local login form. API key and OIDC login remain available.
+auth:
+  local:
+    enabled: false
