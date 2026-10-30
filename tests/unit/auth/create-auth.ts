@@ -6,6 +6,8 @@ import { createAuthService } from "~/server/web/auth";
 export function createTestAuth(
   options: {
     headscaleApiKey?: string;
+    localEnabled?: boolean;
+    cookie?: { secure?: boolean; maxAge?: number };
     proxyAuth?: {
       enabled: boolean;
       allowedCidrs?: string[];
@@ -23,6 +25,7 @@ export function createTestAuth(
 
   const auth = createAuthService({
     secret: "test-secret-key-for-unit-tests",
+    localEnabled: options.localEnabled,
     headscaleApiKey: options.headscaleApiKey,
     proxyAuth: options.proxyAuth,
     db,
@@ -31,6 +34,7 @@ export function createTestAuth(
       path: "/admin",
       secure: false,
       maxAge: 3600,
+      ...options.cookie,
     },
   });
 

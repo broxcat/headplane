@@ -79,3 +79,20 @@ describe("Configuration YAML file loading", () => {
     expect(disabled.integration?.agent?.tailscale_netns).toBe(false);
   });
 });
+
+test("local login configuration preserves secret-file Headscale credentials and rejects non-boolean activation", async () => {
+  const keyPath = await tempFile("headscale-key", "config-test-headscale-credential\n");
+  const path = await writeConfig({
+    ...base,
+    headscale: { ...base.headscale, api_key_path: keyPath },
+    auth: { local: { enabled: true } },
+    oidc,
+  });
+  const config = await loadConfig(path);
+  expect(config.auth?.local?.enabled).toBe(true);
+  expect(config.headscale.api_key).toBe("config-test-headscale-credential");
+  expect(config.oidc?.client_id).toBe(oidc.client_id);
+  await expect(
+    loadConfig(await writeConfig({ ...base, auth: { local: { enabled: "true" } } })),
+  ).rejects.toBeInstanceOf(ConfigError);
+});

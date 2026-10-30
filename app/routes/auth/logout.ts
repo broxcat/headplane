@@ -1,12 +1,21 @@
-import { type ActionFunctionArgs, redirect } from "react-router";
+import { type ActionFunctionArgs, data, redirect } from "react-router";
 
 import { appConfigContext, authContext, oidcContext } from "~/server/context";
+import { ActionError } from "~/server/web/actions";
+import { requireSameOrigin } from "~/server/web/csrf";
 
 export async function loader() {
   return redirect("/machines");
 }
 
 export async function action({ request, context }: ActionFunctionArgs) {
+  try {
+    requireSameOrigin(request);
+  } catch (error) {
+    if (error instanceof ActionError)
+      return data({ message: error.message }, { status: error.status });
+    throw error;
+  }
   const auth = context.get(authContext);
   const config = context.get(appConfigContext);
   const oidc = context.get(oidcContext);

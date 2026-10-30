@@ -1,14 +1,20 @@
 import { createHash, createHmac } from "node:crypto";
 import { isIP } from "node:net";
 
-import { eq, lt, sql } from "drizzle-orm";
+import { and, eq, lt, sql } from "drizzle-orm";
 import { NodeSQLiteDatabase } from "drizzle-orm/node-sqlite";
 import { createCookie, data } from "react-router";
 import { ulid } from "ulidx";
 
 import type { Machine } from "~/types";
 
-import { type HeadplaneUser, authSessions, users } from "../db/schema";
+import {
+  type HeadplaneUser,
+  authSessions,
+  localAdminUsers,
+  localAuthEvents,
+  users,
+} from "../db/schema";
 import { Capabilities, type Role, Roles, capsForRole } from "./roles";
 
 export type Principal =
@@ -21,7 +27,7 @@ export type Principal =
   | UserPrincipal;
 
 export type UserPrincipal = {
-  kind: "oidc" | "proxy";
+  kind: "oidc" | "proxy" | "local_admin";
   sessionId: string;
   idToken?: string;
   user: {
@@ -62,6 +68,7 @@ interface CookiePayload {
 export interface AuthServiceOptions {
   secret: string;
   headscaleApiKey?: string;
+  localEnabled?: boolean;
   proxyAuth?: ProxyAuthOptions;
   db: NodeSQLiteDatabase;
   cookie: {
@@ -86,6 +93,8 @@ export interface AuthService {
     options?: { idToken?: string; maxAge?: number },
   ): Promise<string>;
 
+  createLocalSession(userId: string, revision: number): Promise<string | undefined>;
+  clientAddress(request: Request): string | undefined;
   createApiKeySession(apiKey: string, displayName: string, maxAge: number): Promise<string>;
   destroySession(request?: Request): Promise<string>;
   findOrCreateUser(
@@ -108,7 +117,7 @@ export interface AuthService {
 }
 
 export function isUserPrincipal(principal: Principal): principal is UserPrincipal {
-  return principal.kind === "oidc" || principal.kind === "proxy";
+  return principal.kind !== "api_key";
 }
 
 interface CidrRange {
@@ -259,6 +268,7 @@ export function createAuthService(opts: AuthServiceOptions): AuthService {
     const cookie = createCookie(opts.cookie.name, {
       ...opts.cookie,
       httpOnly: true,
+      sameSite: "lax",
       maxAge,
     });
 
@@ -467,6 +477,24 @@ export function createAuthService(opts: AuthServiceOptions): AuthService {
       throw new Error("OIDC session missing user_id");
     }
 
+    const local = opts.db
+      .select()
+      .from(localAdminUsers)
+      .where(eq(localAdminUsers.user_id, session.user_id))
+      .get();
+    if (session.kind === "local_admin") {
+      if (!opts.localEnabled || !opts.headscaleApiKey || !local?.enabled) {
+        throw new Error("Local account is unavailable");
+      }
+      return resolveUserPrincipal({
+        kind: "local_admin",
+        sessionId: session.id,
+        userId: session.user_id,
+        profile: { username: local.username },
+      });
+    }
+    if (session.kind !== "oidc" || local) throw new Error("Invalid session identity");
+
     return resolveUserPrincipal({
       kind: "oidc",
       sessionId: session.id,
@@ -540,6 +568,39 @@ export function createAuthService(opts: AuthServiceOptions): AuthService {
     return opts.headscaleApiKey;
   }
 
+  async function createLocalSession(userId: string, revision: number): Promise<string | undefined> {
+    if (!opts.localEnabled || !opts.headscaleApiKey) return;
+    const sid = opts.db.transaction((tx) => {
+      const account = tx
+        .select()
+        .from(localAdminUsers)
+        .where(
+          and(
+            eq(localAdminUsers.user_id, userId),
+            eq(localAdminUsers.revision, revision),
+            eq(localAdminUsers.enabled, true),
+          ),
+        )
+        .get();
+      if (!account) return;
+      const id = ulid();
+      tx.insert(authSessions)
+        .values({
+          id,
+          kind: "local_admin",
+          user_id: userId,
+          expires_at: new Date(Date.now() + opts.cookie.maxAge * 1000),
+        })
+        .run();
+      tx.update(users).set({ last_login_at: new Date() }).where(eq(users.id, userId)).run();
+      tx.insert(localAuthEvents)
+        .values({ id: ulid(), kind: "login_succeeded", user_id: userId, created_at: new Date() })
+        .run();
+      return id;
+    });
+    return sid ? encodeCookie({ sid }, opts.cookie.maxAge) : undefined;
+  }
+
   async function createOidcSession(
     userId: string,
     profile: NonNullable<CookiePayload["profile"]>,
@@ -599,6 +660,11 @@ export function createAuthService(opts: AuthServiceOptions): AuthService {
     const [existing] = await opts.db.select().from(users).where(eq(users.sub, subject)).limit(1);
 
     if (existing) {
+      if (
+        opts.db.select().from(localAdminUsers).where(eq(localAdminUsers.user_id, existing.id)).get()
+      ) {
+        throw data("This identity is reserved for local authentication.", { status: 403 });
+      }
       const syncedRole = normalizeInitialRole(options?.syncRole);
       await opts.db
         .update(users)
@@ -792,6 +858,8 @@ export function createAuthService(opts: AuthServiceOptions): AuthService {
     canManageNode,
     getHeadscaleApiKey,
     createOidcSession,
+    createLocalSession,
+    clientAddress: (request) => clientAddresses.get(request),
     createApiKeySession,
     destroySession,
     findOrCreateUser,

@@ -60,6 +60,9 @@ importers:
       drizzle-orm:
         specifier: 1.0.0-rc.4
         version: 1.0.0-rc.4(@libsql/client@0.17.0(bufferutil@4.0.9)(utf-8-validate@5.0.10))(@types/better-sqlite3@7.6.13)(@types/mssql@9.1.9)(arktype@2.2.8)(better-sqlite3@11.10.0)(mssql@11.0.1)(valibot@1.5.0(typescript@7.0.2))(zod@4.6.7)
+      hash-wasm:
+        specifier: ^4.12.0
+        version: 4.12.0
       isbot:
         specifier: 5.2.2
         version: 5.2.2
@@ -2766,6 +2769,9 @@ packages:
   has-tostringtag@1.0.2:
     resolution: {integrity: sha512-NqADB8VjPFLM2V0VvHUewwwsw0ZWBaIdgo+ieHtK3hasLz4qeCRjYcqfB6AQrBggRKppKF8L52/VqdVsO47Dlw==}
     engines: {node: '>= 0.4'}
+
+  hash-wasm@4.12.0:
+    resolution: {integrity: sha512-+/2B2rYLb48I/evdOIhP+K/DD2ca2fgBjp6O+GBEnCDk2e4rpeXIK8GvIyRPjTezgmWn9gmKwkQjjx6BtqDHVQ==}
 
   hasown@2.0.4:
     resolution: {integrity: sha512-T2UbfbBEF32wiepXIsMlTW9+dDYC6wMh/t/vYA4tuOMKqWz/n3vr1NFSxQiyP+zk2mXsoMA/i/7qV6LKut1t1A==}
@@ -6647,6 +6653,8 @@ snapshots:
   has-tostringtag@1.0.2:
     dependencies:
       has-symbols: 1.1.0
+
+  hash-wasm@4.12.0: {}
 
   hasown@2.0.4:
     dependencies:
